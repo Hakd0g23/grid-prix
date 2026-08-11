@@ -125,23 +125,23 @@
   footer{text-align:center; color:var(--muted); font-size:.7rem; padding:10px 10px 46px; opacity:.6;}
 
   /* ---- Racing strip decoration (empty-space flair): 22-car grid ---- */
-  .raceLane{position:fixed; left:0; right:0; bottom:0; height:34px; overflow:hidden; pointer-events:none; z-index:0;}
+  .raceLane{position:fixed; left:0; right:0; bottom:0; height:40px; overflow:hidden; pointer-events:none; z-index:0;}
   .raceLane::before{content:""; position:absolute; inset:0; top:2px;
     background:repeating-linear-gradient(90deg,var(--gridline) 0 22px,transparent 22px 44px);
     height:2px; top:50%; margin-top:-1px; opacity:.6;}
-  .raceCar{position:absolute; bottom:2px; left:-80px; width:52px; height:21px;
+  .raceCar{position:absolute; bottom:2px; left:-90px; width:72px; height:30px;
     animation-name:raceAcross; animation-timing-function:linear; animation-iteration-count:infinite;
     animation-fill-mode:backwards;}
   .raceCar svg{width:100%; height:100%; color:inherit; transform:scaleX(-1);}
   .raceCar .wheel{animation:wheelSpin .3s linear infinite; transform-origin:center; transform-box:fill-box;}
   @keyframes raceAcross{
-    from{ left:-80px; }
+    from{ left:-90px; }
     to{ left:100%; }
   }
   @keyframes wheelSpin{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
   @media (prefers-reduced-motion: reduce){
-    .raceCar{ animation:none; }
-    .raceCar .wheel{ animation:none; }
+    .raceCar{ animation:none !important; }
+    .raceCar .wheel{ animation:none !important; }
   }
   @media (max-width:520px){ .raceLane{ display:none; } }
 
@@ -1051,25 +1051,26 @@ function renderCrossword(level){
    anywhere in the UI); no numbers, no driver identities. Pure background flair. */
 const RACE_ACCENT_COLORS = ["#FF8000","#E80020","#3671C6","#27F4D2","#00665E","#FF87BC","#64C4FF","#6692FF","#E6002B","#C8CED4","#F2F2F2"];
 function carSVG(){
-  // Generic modern (2022+ era) open-wheel silhouette: pointed nose, halo bar
-  // over the cockpit, low wide sidepods, rear wing with endplates + beam wing.
+  // Bold open-wheel pictogram tuned to read at ~70px: oversized exposed
+  // wheels (the #1 visual cue vs. a road car), a low pointed nose, a
+  // cockpit hump, and a rear wing raised clear of the body on a pylon.
   // Original geometric shape — no team livery, sponsor marks, or logos.
-  return `<svg viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg">
-    <rect x="196" y="16" width="6" height="32" fill="currentColor"/>
-    <rect x="182" y="14" width="24" height="6" fill="currentColor"/>
-    <rect x="190" y="52" width="16" height="4" fill="currentColor"/>
-    <path d="M4,60 L12,52 Q22,46 36,46 L62,42 Q92,36 122,38 L158,42 Q178,44 190,50 L192,54 L192,60 L168,64 L100,66 L52,66 L22,64 Z" fill="currentColor"/>
-    <path d="M56,42 Q72,20 92,42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-    <rect x="0" y="56" width="28" height="4" fill="currentColor"/>
-    <rect x="0" y="48" width="5" height="14" fill="currentColor"/>
-    <g class="wheel"><circle cx="42" cy="70" r="16" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="42" y1="56" x2="42" y2="84" stroke="currentColor" stroke-width="2"/><line x1="28" y1="70" x2="56" y2="70" stroke="currentColor" stroke-width="2"/></g>
-    <g class="wheel"><circle cx="168" cy="68" r="17" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="168" y1="53" x2="168" y2="83" stroke="currentColor" stroke-width="2"/><line x1="153" y1="68" x2="183" y2="68" stroke="currentColor" stroke-width="2"/></g>
+  return `<svg viewBox="0 0 220 100" xmlns="http://www.w3.org/2000/svg">
+    <rect x="192" y="28" width="6" height="34" fill="currentColor"/>
+    <rect x="174" y="20" width="36" height="9" fill="currentColor"/>
+    <path d="M2,70 L18,56 Q40,42 68,42 Q95,40 128,44 L162,52 L172,56 L172,66 L140,70 L58,72 L18,72 Z" fill="currentColor"/>
+    <ellipse cx="76" cy="40" rx="15" ry="11" fill="currentColor"/>
+    <rect x="0" y="65" width="20" height="6" fill="currentColor"/>
+    <g class="wheel"><circle cx="38" cy="74" r="23" fill="#0c0c0e" stroke="currentColor" stroke-width="6"/><line x1="38" y1="55" x2="38" y2="93" stroke="currentColor" stroke-width="3"/><line x1="19" y1="74" x2="57" y2="74" stroke="currentColor" stroke-width="3"/></g>
+    <g class="wheel"><circle cx="158" cy="72" r="25" fill="#0c0c0e" stroke="currentColor" stroke-width="6"/><line x1="158" y1="51" x2="158" y2="93" stroke="currentColor" stroke-width="3"/><line x1="137" y1="72" x2="179" y2="72" stroke="currentColor" stroke-width="3"/></g>
   </svg>`;
 }
 function buildRaceLane(){
   const lane = document.getElementById("raceLane");
   if(!lane) return;
   const total = 22;
+  const styleEl = document.createElement("style");
+  let keyframesCSS = "@keyframes raceEnter{from{left:-90px;}to{left:100%;}}";
   let entrance = 0.3;
   for(let i=0;i<total;i++){
     const color = RACE_ACCENT_COLORS[i % RACE_ACCENT_COLORS.length];
@@ -1077,13 +1078,36 @@ function buildRaceLane(){
     car.className = "raceCar";
     car.style.color = color;
     car.style.left = (i/(total-1)*94).toFixed(1) + "%"; // static spread, used only for reduced-motion
-    const duration = 3.5 + Math.random()*3; // 3.5-6.5s: fast F1-speed crossing
-    car.style.animationDuration = duration.toFixed(2) + "s";
-    car.style.animationDelay = entrance.toFixed(2) + "s"; // trickle in one at a time, not all at once
-    entrance += 0.55 + Math.random()*0.9;
+
+    // Each car mostly waits off-screen and only zooms across briefly, so the
+    // steady-state visible count stays low (~1-3) no matter how many cars exist.
+    const crossDur = 1.1 + Math.random()*0.8;   // 1.1-1.9s: fast zoom across the lane
+    const cycleDur = 13 + Math.random()*7;      // 13-20s: mostly spent hidden, waiting
+    const holdPct = ((cycleDur - crossDur) / cycleDur * 100).toFixed(2);
+    const loopName = `raceLoop_${i}`;
+    keyframesCSS += `@keyframes ${loopName}{0%{left:-90px;}${holdPct}%{left:-90px;}100%{left:100%;}}`;
+
+    // Phase 1: quick staggered first entrance (one-shot, short delay).
+    car.style.animationName = "raceEnter";
+    car.style.animationDuration = crossDur.toFixed(2) + "s";
+    car.style.animationDelay = entrance.toFixed(2) + "s";
+    car.style.animationIterationCount = "1";
+    car.style.animationFillMode = "backwards";
+    car.addEventListener("animationend", function onFirstLap(){
+      car.removeEventListener("animationend", onFirstLap);
+      // Phase 2: switch to the sparse long-hold repeating loop.
+      car.style.animationName = loopName;
+      car.style.animationDuration = cycleDur.toFixed(2) + "s";
+      car.style.animationDelay = "0s";
+      car.style.animationIterationCount = "infinite";
+    }, { once: true });
+
+    entrance += 0.5 + Math.random()*0.9;
     car.innerHTML = carSVG();
     lane.appendChild(car);
   }
+  styleEl.textContent = keyframesCSS;
+  document.head.appendChild(styleEl);
 }
 
 /* ============ Boot ============ */
