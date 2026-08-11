@@ -83,10 +83,17 @@
   .sc{background:var(--panel2); display:flex; align-items:center; justify-content:center;
     font-family:var(--font-mono); font-size:clamp(11px,3.6vw,20px); font-weight:700; cursor:pointer; user-select:none; position:relative;}
   .sc.given{background:#20232a; color:var(--text); cursor:default;}
+  .sc.filled{background:#232c3a;}
+  .sc.filled.conflict{background:#3a1e1e;}
   .sc.selected{background:#3a1414;}
   .sc.conflict{color:var(--red); }
   .sc.boxR{border-right:2px solid var(--red);}
   .sc.boxB{border-bottom:2px solid var(--red);}
+  .notesGrid{display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+    width:100%; height:100%; padding:1px;}
+  .notesGrid span{display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-size:clamp(6px,1.6vw,9px); font-weight:600; color:var(--amber);}
+  .padnum button.active{background:var(--red); border-color:var(--red-dark);}
   .padnum{display:grid; grid-template-columns:repeat(5,1fr); gap:6px; width:min(92vw,480px);}
   .padnum button{padding:12px 0; font-size:1.1rem; font-weight:700; background:var(--panel2);
     border:1px solid var(--gridline); border-radius:8px; color:var(--text);}
@@ -395,16 +402,20 @@ function renderSudoku(level){
 
   const given = puzzle.map(row=>row.map(v=>v!==0));
   const board = puzzle.map(row=>row.slice());
+  const notes = Array.from({length:N},()=>Array.from({length:N},()=>new Set()));
   let selected = null;
+  let notesMode = false;
 
   const topbar = document.createElement("div");
   topbar.className = "topbar";
   const timeStat = document.createElement("div"); timeStat.className="stat"; timeStat.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>0:00</b>';
   const lvlStat = document.createElement("div"); lvlStat.className="stat"; lvlStat.innerHTML=`Level <b>${level}</b>/${MAX_LEVEL}`;
   const controls = document.createElement("div"); controls.style.display="flex"; controls.style.gap="8px";
+  const notesBtn = document.createElement("button"); notesBtn.className="btn small"; notesBtn.textContent="✎ Notes";
+  notesBtn.onclick = ()=>{ notesMode = !notesMode; notesBtn.classList.toggle("primary", notesMode); };
   const retryBtn = document.createElement("button"); retryBtn.className="btn small"; retryBtn.textContent="Retry";
   retryBtn.onclick = ()=> renderSudoku(level);
-  controls.appendChild(backBtn(()=>renderLevelSelect("sudoku"), "← Levels")); controls.appendChild(retryBtn);
+  controls.appendChild(backBtn(()=>renderLevelSelect("sudoku"), "← Levels")); controls.appendChild(notesBtn); controls.appendChild(retryBtn);
   topbar.appendChild(timeStat); topbar.appendChild(lvlStat); topbar.appendChild(controls);
 
   const gridEl = document.createElement("div");
@@ -448,8 +459,22 @@ function renderSudoku(level){
         if(r===2 || r===5) cell.classList.add("boxB");
         if(selected && selected[0]===r && selected[1]===c) cell.classList.add("selected");
         const val = board[r][c];
-        cell.textContent = val || "";
-        if(val && !given[r][c] && conflicts(r,c,val)) cell.classList.add("conflict");
+        if(val){
+          cell.textContent = val;
+          if(!given[r][c]){
+            cell.classList.add("filled");
+            if(conflicts(r,c,val)) cell.classList.add("conflict");
+          }
+        } else if(notes[r][c].size){
+          const ng = document.createElement("div");
+          ng.className = "notesGrid";
+          for(let n=1;n<=9;n++){
+            const s = document.createElement("span");
+            s.textContent = notes[r][c].has(n) ? n : "";
+            ng.appendChild(s);
+          }
+          cell.appendChild(ng);
+        }
         cell.onclick = ()=>{
           if(given[r][c]) return;
           selected = [r,c];
@@ -467,7 +492,15 @@ function renderSudoku(level){
       if(!selected) return;
       const [r,c] = selected;
       if(given[r][c]) return;
+      if(notesMode){
+        if(board[r][c]) return;
+        const s = notes[r][c];
+        s.has(n) ? s.delete(n) : s.add(n);
+        draw();
+        return;
+      }
       board[r][c] = n;
+      notes[r][c].clear();
       draw();
       checkWin();
     };
@@ -479,7 +512,8 @@ function renderSudoku(level){
     if(!selected) return;
     const [r,c] = selected;
     if(given[r][c]) return;
-    board[r][c] = 0;
+    if(board[r][c]) board[r][c] = 0;
+    else notes[r][c].clear();
     draw();
   };
   padEl.appendChild(eraseBtn);
@@ -497,30 +531,184 @@ function renderSudoku(level){
 }
 
 /* =========================================================
+   Shared categorized word bank — used by both Word Hunt and
+   Crossword so puzzles are themed (Drivers, Tracks, Countries,
+   Car Brands, F1 Terms) and stop repeating the same small pool
+   across every level.
+   ========================================================= */
+const F1_CATEGORIES = {
+  "Drivers": [
+    {w:"VERSTAPPEN",clue:"Dutch multiple World Champion"},
+    {w:"HAMILTON",clue:"Record-tying 7-time champion"},
+    {w:"LECLERC",clue:"Monégasque Ferrari driver"},
+    {w:"NORRIS",clue:"British McLaren driver"},
+    {w:"RUSSELL",clue:"British Mercedes driver"},
+    {w:"PEREZ",clue:"Mexican driver, 'Checo'"},
+    {w:"ALONSO",clue:"Spanish two-time champion"},
+    {w:"STROLL",clue:"Canadian Aston Martin driver"},
+    {w:"GASLY",clue:"French Alpine driver"},
+    {w:"OCON",clue:"French driver, Alonso's ex-teammate"},
+    {w:"ALBON",clue:"Thai-British Williams driver"},
+    {w:"SAINZ",clue:"Spanish driver, Carlos"},
+    {w:"PIASTRI",clue:"Australian McLaren driver"},
+    {w:"TSUNODA",clue:"Japanese driver"},
+    {w:"HULKENBERG",clue:"German driver, 'Hulk'"},
+    {w:"BOTTAS",clue:"Finnish former Mercedes driver"},
+    {w:"ZHOU",clue:"First Chinese F1 driver"},
+    {w:"MAGNUSSEN",clue:"Danish driver, 'K-Mag'"},
+    {w:"RICCIARDO",clue:"Australian driver, known for the 'shoey'"},
+    {w:"VETTEL",clue:"German four-time champion"},
+    {w:"SCHUMACHER",clue:"Record 7-time German champion"},
+    {w:"RAIKKONEN",clue:"Finnish 'Iceman', 2007 champion"},
+    {w:"PROST",clue:"French 'Professor', four-time champion"},
+    {w:"SENNA",clue:"Brazilian three-time champion, legend"},
+    {w:"MANSELL",clue:"British 1992 champion"},
+    {w:"HILL",clue:"British 1996 champion, Damon"},
+    {w:"VILLENEUVE",clue:"Canadian 1997 champion"},
+    {w:"BUTTON",clue:"British 2009 champion"},
+    {w:"HAKKINEN",clue:"Finnish two-time champion"},
+    {w:"COULTHARD",clue:"Scottish ex-McLaren driver"}
+  ],
+  "Tracks": [
+    {w:"MONZA",clue:"Italian 'Temple of Speed'"},
+    {w:"MONACO",clue:"Glamorous street circuit"},
+    {w:"SILVERSTONE",clue:"British Grand Prix venue"},
+    {w:"SPA",clue:"Belgian circuit, home of Eau Rouge"},
+    {w:"SUZUKA",clue:"Japanese figure-eight circuit"},
+    {w:"INTERLAGOS",clue:"Brazilian Grand Prix venue"},
+    {w:"ZANDVOORT",clue:"Dutch Grand Prix venue"},
+    {w:"IMOLA",clue:"Emilia Romagna circuit"},
+    {w:"BAKU",clue:"Azerbaijan street circuit"},
+    {w:"JEDDAH",clue:"Saudi Arabian street circuit"},
+    {w:"MIAMI",clue:"Florida street circuit"},
+    {w:"AUSTIN",clue:"US Grand Prix venue (COTA)"},
+    {w:"VEGAS",clue:"Las Vegas Strip circuit"},
+    {w:"SEPANG",clue:"Former Malaysian GP venue"},
+    {w:"SHANGHAI",clue:"Chinese Grand Prix venue"},
+    {w:"MELBOURNE",clue:"Australian Grand Prix venue"},
+    {w:"MONTREAL",clue:"Canadian Grand Prix venue"},
+    {w:"ISTANBUL",clue:"Turkish Grand Prix venue"},
+    {w:"HOCKENHEIM",clue:"Former German GP venue"},
+    {w:"NURBURGRING",clue:"Historic German circuit"},
+    {w:"YASMARINA",clue:"Abu Dhabi, season-finale venue"},
+    {w:"HUNGARORING",clue:"Hungarian Grand Prix venue"}
+  ],
+  "Countries": [
+    {w:"AUSTRALIA",clue:"Melbourne's home country"},
+    {w:"AUSTRIA",clue:"Red Bull Ring's home country"},
+    {w:"AZERBAIJAN",clue:"Baku's home country"},
+    {w:"BAHRAIN",clue:"Sakhir's home country"},
+    {w:"BELGIUM",clue:"Spa's home country"},
+    {w:"BRAZIL",clue:"Interlagos's home country"},
+    {w:"CANADA",clue:"Montreal's home country"},
+    {w:"CHINA",clue:"Shanghai's home country"},
+    {w:"FRANCE",clue:"Paul Ricard's home country"},
+    {w:"GERMANY",clue:"Nürburgring's home country"},
+    {w:"HUNGARY",clue:"Hungaroring's home country"},
+    {w:"ITALY",clue:"Monza's home country"},
+    {w:"JAPAN",clue:"Suzuka's home country"},
+    {w:"MEXICO",clue:"Mexico City's home country"},
+    {w:"NETHERLANDS",clue:"Zandvoort's home country"},
+    {w:"QATAR",clue:"Lusail's home country"},
+    {w:"SINGAPORE",clue:"Marina Bay's home country"},
+    {w:"SPAIN",clue:"Barcelona's home country"}
+  ],
+  "Car Brands": [
+    {w:"FERRARI",clue:"Prancing-horse constructor"},
+    {w:"MCLAREN",clue:"Woking-based constructor"},
+    {w:"MERCEDES",clue:"Brackley-based constructor"},
+    {w:"REDBULL",clue:"Milton Keynes-based constructor"},
+    {w:"ASTONMARTIN",clue:"British luxury-badge constructor"},
+    {w:"ALPINE",clue:"French Renault-owned constructor"},
+    {w:"WILLIAMS",clue:"Grove-based historic constructor"},
+    {w:"HAAS",clue:"American-owned constructor"},
+    {w:"AUDI",clue:"German manufacturer joining as constructor"},
+    {w:"CADILLAC",clue:"GM-badge constructor joining the grid"},
+    {w:"RACINGBULLS",clue:"Red Bull's junior team"}
+  ],
+  "F1 Terms": [
+    {w:"PITS",clue:"Where teams service the cars"},
+    {w:"PODIUM",clue:"Top-3 finish ceremony"},
+    {w:"PIT",clue:"Where a car stops to change tyres"},
+    {w:"POLE",clue:"Fastest qualifier's starting spot"},
+    {w:"TURBO",clue:"Forced-induction hybrid-era power unit tech"},
+    {w:"TRACK",clue:"The circuit itself"},
+    {w:"TYRE",clue:"What Pirelli supplies"},
+    {w:"DRS",clue:"Drag Reduction System (abbr.)"},
+    {w:"DNF",clue:"Did Not Finish (abbr.)"},
+    {w:"GRID",clue:"Starting formation for the race"},
+    {w:"GEAR",clue:"What a driver shifts"},
+    {w:"GEARBOX",clue:"Housing for the transmission"},
+    {w:"APEX",clue:"Ideal cornering point of a corner"},
+    {w:"AERO",clue:"Downforce-shaping bodywork, for short"},
+    {w:"FLAG",clue:"Chequered ... at the finish"},
+    {w:"FIA",clue:"The sport's governing body (abbr.)"},
+    {w:"LAPS",clue:"Circuits completed during a race"},
+    {w:"LIGHTS",clue:"Five red ... before the start"},
+    {w:"CREW",clue:"Pit ... changing the tyres"},
+    {w:"CORNER",clue:"A bend in the circuit"},
+    {w:"RACE",clue:"Sunday's main event"},
+    {w:"WING",clue:"Front or rear aero element"},
+    {w:"WET",clue:"Tyre compound for rain"},
+    {w:"BOX",clue:"Radio call meaning 'pit now'"},
+    {w:"BOOST",clue:"Extra hybrid power on demand"},
+    {w:"ENGINE",clue:"The power unit"},
+    {w:"ERA",clue:"The hybrid ..., since 2014"},
+    {w:"MEDIUM",clue:"Yellow-marked tyre compound"},
+    {w:"HARD",clue:"White-marked, most durable tyre"},
+    {w:"HALO",clue:"Cockpit safety device since 2018"},
+    {w:"SOFT",clue:"Red-marked, fastest but shortest-lived tyre"},
+    {w:"SPIN",clue:"Losing control and rotating"},
+    {w:"CHASSIS",clue:"The car's structural frame"},
+    {w:"PADDOCK",clue:"Team garages and hospitality area"},
+    {w:"UNDERCUT",clue:"Pitting early to gain track position"},
+    {w:"FORMATION",clue:"... lap before the race start"},
+    {w:"SLIPSTREAM",clue:"Aero tow behind another car"},
+    {w:"TELEMETRY",clue:"Live car data sent to the pit wall"},
+    {w:"SAFETYCAR",clue:"Neutralizes the race after an incident"}
+  ]
+};
+const CATEGORY_NAMES = Object.keys(F1_CATEGORIES);
+
+// Picks a themed word pool for a level: rotates through categories so
+// nearby levels don't repeat the same theme, and pulls in a second
+// category if the primary one is too small for the requested count.
+function wordsForLevel(level, minCount, maxLen){
+  const catIdx = level % CATEGORY_NAMES.length;
+  const primaryName = CATEGORY_NAMES[catIdx];
+  let pool = F1_CATEGORIES[primaryName].filter(e=>!maxLen || e.w.length<=maxLen);
+  let categoryLabel = primaryName;
+  if(pool.length < minCount){
+    const secondaryName = CATEGORY_NAMES[(catIdx+1)%CATEGORY_NAMES.length];
+    const extra = F1_CATEGORIES[secondaryName].filter(e=>!maxLen || e.w.length<=maxLen);
+    pool = pool.concat(extra);
+    categoryLabel = primaryName + " + " + secondaryName;
+  }
+  return { entries: pool, categoryLabel };
+}
+
+/* =========================================================
    GAME 2: WORD HUNT — levels scale grid size, word count & directions
    ========================================================= */
-const WORD_BANK = [
-  "VERSTAPPEN","HAMILTON","FERRARI","MERCEDES","MCLAREN","REDBULL","PODIUM","PITSTOP",
-  "DRS","TURBO","APEX","GRID","MONACO","SILVERSTONE","MONZA","POLE","CHEQUERED","SAFETYCAR",
-  "SLIPSTREAM","UNDERCUT","PADDOCK","TELEMETRY","CHASSIS","GEARBOX","HALO","FORMATION"
-];
 const WH_COLORS = ["#00d26a","#ffb400","#3671c6","#ff8000","#27f4d2","#ff87bc","#64c4ff","#e10600","#cedc00","#a78bfa"];
 
 function renderWordHunt(level){
   const meta = GAME_META.wordhunt;
-  tagline.textContent = meta.tag + "  ·  Level " + level;
-  app.innerHTML = "";
-
   const rng = rngFor("wordhunt", level);
   const t = difficultyT(level);
 
   const SIZE = Math.round(8 + t*6); // 8..14
   const wordCount = clamp(Math.round(5 + t*7), 5, 12);
+
+  const { entries, categoryLabel } = wordsForLevel(level, wordCount, SIZE);
+  tagline.textContent = meta.tag + "  ·  " + categoryLabel + "  ·  Level " + level;
+  app.innerHTML = "";
+
   let dirs = [[0,1],[1,0],[1,1],[-1,1]];
   if(t > 0.4) dirs = dirs.concat([[0,-1],[-1,0]]);
   if(t > 0.75) dirs = dirs.concat([[-1,-1],[1,-1]]);
 
-  const pool = shuffleRng(WORD_BANK, rng).filter(w=>w.length <= SIZE);
+  const pool = shuffleRng(entries.map(e=>e.w), rng).filter(w=>w.length <= SIZE);
   const WORDS = pool.slice(0, wordCount);
 
   const grid = Array.from({length:SIZE},()=>Array(SIZE).fill(""));
@@ -696,49 +884,6 @@ function renderWordHunt(level){
    crossword), with adjacency checks so words never accidentally
    fuse together. Levels scale how many words get placed.
    ========================================================= */
-const CROSSWORD_WORD_BANK = [
-  {w:"PITS",clue:"Where teams service the cars"},
-  {w:"PODIUM",clue:"Top-3 finish ceremony"},
-  {w:"PIT",clue:"Where a car stops to change tyres"},
-  {w:"POLE",clue:"Fastest qualifier's starting spot"},
-  {w:"TURBO",clue:"Forced-induction hybrid-era power unit tech"},
-  {w:"TRACK",clue:"The circuit itself"},
-  {w:"TYRE",clue:"What Pirelli supplies"},
-  {w:"DRS",clue:"Drag Reduction System (abbr.)"},
-  {w:"DNF",clue:"Did Not Finish (abbr.)"},
-  {w:"GRID",clue:"Starting formation for the race"},
-  {w:"GEAR",clue:"What a driver shifts"},
-  {w:"GEARBOX",clue:"Housing for the transmission"},
-  {w:"APEX",clue:"Ideal cornering point of a corner"},
-  {w:"AERO",clue:"Downforce-shaping bodywork, for short"},
-  {w:"FLAG",clue:"Chequered ... at the finish"},
-  {w:"FIA",clue:"The sport's governing body (abbr.)"},
-  {w:"LAPS",clue:"Circuits completed during a race"},
-  {w:"LIGHTS",clue:"Five red ... before the start"},
-  {w:"CREW",clue:"Pit ... changing the tyres"},
-  {w:"CORNER",clue:"A bend in the circuit"},
-  {w:"RACE",clue:"Sunday's main event"},
-  {w:"RED",clue:"Bull energy-drink team, informally"},
-  {w:"WING",clue:"Front or rear aero element"},
-  {w:"WET",clue:"Tyre compound for rain"},
-  {w:"BOX",clue:"Radio call meaning 'pit now'"},
-  {w:"BOOST",clue:"Extra hybrid power on demand"},
-  {w:"ENGINE",clue:"The power unit"},
-  {w:"ERA",clue:"The hybrid ..., since 2014"},
-  {w:"MEDIUM",clue:"Yellow-marked tyre compound"},
-  {w:"MONACO",clue:"Glamorous street circuit"},
-  {w:"MONZA",clue:"Italian 'Temple of Speed'"},
-  {w:"HARD",clue:"White-marked, most durable tyre"},
-  {w:"HALO",clue:"Cockpit safety device since 2018"},
-  {w:"SOFT",clue:"Red-marked, fastest but shortest-lived tyre"},
-  {w:"SPIN",clue:"Losing control and rotating"},
-  {w:"CHASSIS",clue:"The car's structural frame"},
-  {w:"PADDOCK",clue:"Team garages and hospitality area"},
-  {w:"UNDERCUT",clue:"Pitting early to gain track position"},
-  {w:"FORMATION",clue:"... lap before the race start"},
-  {w:"SLIPSTREAM",clue:"Aero tow behind another car"}
-];
-
 function buildInterlockingCrosswordAttempt(words, rng){
   const cellLetter = {};
   const placed = [];
@@ -828,13 +973,14 @@ function buildInterlockingCrossword(words, rng){
 
 function renderCrossword(level){
   const meta = GAME_META.crossword;
-  tagline.textContent = meta.tag + "  ·  Level " + level;
-  app.innerHTML = "";
-
   const rng = rngFor("crossword", level);
   const t = difficultyT(level);
-  const wordCount = clamp(Math.round(6 + t*10), 6, CROSSWORD_WORD_BANK.length);
-  const chosen = shuffleRng(CROSSWORD_WORD_BANK, rng).slice(0, wordCount);
+  const wordCount = clamp(Math.round(6 + t*10), 6, 16);
+  const { entries: bankEntries, categoryLabel } = wordsForLevel(level, wordCount, null);
+  tagline.textContent = meta.tag + "  ·  " + categoryLabel + "  ·  Level " + level;
+  app.innerHTML = "";
+
+  const chosen = shuffleRng(bankEntries, rng).slice(0, wordCount);
   const placementOrder = chosen.slice().sort((a,b)=> b.w.length - a.w.length);
 
   const built = buildInterlockingCrossword(placementOrder, rng);
