@@ -124,16 +124,14 @@
 
   footer{text-align:center; color:var(--muted); font-size:.7rem; padding:10px 10px 46px; opacity:.6;}
 
-  /* ---- Racing strip decoration (empty-space flair) ---- */
+  /* ---- Racing strip decoration (empty-space flair): 22-car grid ---- */
   .raceLane{position:fixed; left:0; right:0; bottom:0; height:34px; overflow:hidden; pointer-events:none; z-index:0;}
   .raceLane::before{content:""; position:absolute; inset:0; top:2px;
     background:repeating-linear-gradient(90deg,var(--gridline) 0 22px,transparent 22px 44px);
     height:2px; top:50%; margin-top:-1px; opacity:.6;}
-  .raceCar{position:absolute; bottom:2px; left:-80px; width:64px; height:26px;
-    animation:raceAcross 13s linear infinite;}
-  .raceCar.lead{animation-delay:-6.4s; opacity:.55; transform:scale(.8);}
-  .raceCar svg{width:100%; height:100%; color:var(--red); transform:scaleX(-1);}
-  .raceCar.lead svg{color:var(--amber);}
+  .raceCar{position:absolute; bottom:2px; left:-80px; width:52px; height:21px;
+    animation-name:raceAcross; animation-timing-function:linear; animation-iteration-count:infinite;}
+  .raceCar svg{width:100%; height:100%; color:inherit; transform:scaleX(-1);}
   .raceCar .wheel{animation:wheelSpin .35s linear infinite; transform-origin:center;}
   @keyframes raceAcross{
     from{ left:-80px; }
@@ -141,7 +139,7 @@
   }
   @keyframes wheelSpin{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
   @media (prefers-reduced-motion: reduce){
-    .raceCar{ animation:none; left:20%; }
+    .raceCar{ animation:none; }
     .raceCar .wheel{ animation:none; }
   }
   @media (max-width:520px){ .raceLane{ display:none; } }
@@ -164,30 +162,7 @@
 
 <footer>Unofficial fan-made puzzle game. Not affiliated with F1, FIA or any team.<br>Icons by <a href="https://game-icons.net" style="color:inherit;">game-icons.net</a> (CC BY 3.0).</footer>
 
-<div class="raceLane" aria-hidden="true">
-  <div class="raceCar lead">
-    <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
-      <rect x="172" y="14" width="6" height="26" fill="currentColor"/>
-      <rect x="160" y="12" width="20" height="6" fill="currentColor"/>
-      <path d="M20,58 L28,46 Q50,30 80,30 L128,34 Q150,36 162,42 L170,44 L170,52 L150,56 L60,60 L28,60 Z" fill="currentColor"/>
-      <path d="M75,30 Q90,18 105,30 Z" fill="currentColor"/>
-      <rect x="4" y="52" width="26" height="6" fill="currentColor"/>
-      <g class="wheel"><circle cx="46" cy="64" r="15" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="46" y1="52" x2="46" y2="76" stroke="currentColor" stroke-width="2"/><line x1="34" y1="64" x2="58" y2="64" stroke="currentColor" stroke-width="2"/></g>
-      <g class="wheel"><circle cx="150" cy="62" r="15" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="150" y1="50" x2="150" y2="74" stroke="currentColor" stroke-width="2"/><line x1="138" y1="62" x2="162" y2="62" stroke="currentColor" stroke-width="2"/></g>
-    </svg>
-  </div>
-  <div class="raceCar">
-    <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
-      <rect x="172" y="14" width="6" height="26" fill="currentColor"/>
-      <rect x="160" y="12" width="20" height="6" fill="currentColor"/>
-      <path d="M20,58 L28,46 Q50,30 80,30 L128,34 Q150,36 162,42 L170,44 L170,52 L150,56 L60,60 L28,60 Z" fill="currentColor"/>
-      <path d="M75,30 Q90,18 105,30 Z" fill="currentColor"/>
-      <rect x="4" y="52" width="26" height="6" fill="currentColor"/>
-      <g class="wheel"><circle cx="46" cy="64" r="15" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="46" y1="52" x2="46" y2="76" stroke="currentColor" stroke-width="2"/><line x1="34" y1="64" x2="58" y2="64" stroke="currentColor" stroke-width="2"/></g>
-      <g class="wheel"><circle cx="150" cy="62" r="15" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="150" y1="50" x2="150" y2="74" stroke="currentColor" stroke-width="2"/><line x1="138" y1="62" x2="162" y2="62" stroke="currentColor" stroke-width="2"/></g>
-    </svg>
-  </div>
-</div>
+<div class="raceLane" id="raceLane" aria-hidden="true"></div>
 
 <script>
 (function(){
@@ -1070,7 +1045,41 @@ function renderCrossword(level){
   setActive(entries[0].row, entries[0].col);
 }
 
+/* ============ Decorative race lane: 22 generic cars, one grid's worth ============
+   Colors only (11 current-team accent hexes, no names/logos/liveries attached
+   anywhere in the UI); no numbers, no driver identities. Pure background flair. */
+const RACE_ACCENT_COLORS = ["#FF8000","#E80020","#3671C6","#27F4D2","#00665E","#FF87BC","#64C4FF","#6692FF","#E6002B","#C8CED4","#F2F2F2"];
+function carSVG(){
+  return `<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+    <rect x="172" y="14" width="6" height="26" fill="currentColor"/>
+    <rect x="160" y="12" width="20" height="6" fill="currentColor"/>
+    <path d="M20,58 L28,46 Q50,30 80,30 L128,34 Q150,36 162,42 L170,44 L170,52 L150,56 L60,60 L28,60 Z" fill="currentColor"/>
+    <path d="M75,30 Q90,18 105,30 Z" fill="currentColor"/>
+    <rect x="4" y="52" width="26" height="6" fill="currentColor"/>
+    <g class="wheel"><circle cx="46" cy="64" r="15" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="46" y1="52" x2="46" y2="76" stroke="currentColor" stroke-width="2"/><line x1="34" y1="64" x2="58" y2="64" stroke="currentColor" stroke-width="2"/></g>
+    <g class="wheel"><circle cx="150" cy="62" r="15" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="150" y1="50" x2="150" y2="74" stroke="currentColor" stroke-width="2"/><line x1="138" y1="62" x2="162" y2="62" stroke="currentColor" stroke-width="2"/></g>
+  </svg>`;
+}
+function buildRaceLane(){
+  const lane = document.getElementById("raceLane");
+  if(!lane) return;
+  const total = 22;
+  const baseDuration = 15;
+  for(let i=0;i<total;i++){
+    const color = RACE_ACCENT_COLORS[i % RACE_ACCENT_COLORS.length];
+    const car = document.createElement("div");
+    car.className = "raceCar";
+    car.style.color = color;
+    car.style.left = (i/(total-1)*94).toFixed(1) + "%";
+    car.style.animationDuration = (baseDuration + (i % 5)).toFixed(1) + "s";
+    car.style.animationDelay = (-(i * baseDuration/total)).toFixed(2) + "s";
+    car.innerHTML = carSVG();
+    lane.appendChild(car);
+  }
+}
+
 /* ============ Boot ============ */
+buildRaceLane();
 renderMenu();
 
 })();
