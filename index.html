@@ -78,27 +78,28 @@
   @media (max-width:480px){ #levelGrid{grid-template-columns:repeat(8,1fr);} }
 
   /* ---- Sudoku ---- */
-  #sudokuGrid{display:grid; grid-template-columns:repeat(6,1fr); gap:2px; background:var(--gridline);
+  #sudokuGrid{display:grid; grid-template-columns:repeat(9,1fr); gap:2px; background:var(--gridline);
     border:2px solid var(--red); border-radius:6px; width:min(92vw,480px); aspect-ratio:1; overflow:hidden;}
   .sc{background:var(--panel2); display:flex; align-items:center; justify-content:center;
-    font-family:var(--font-mono); font-size:clamp(14px,4.5vw,22px); font-weight:700; cursor:pointer; user-select:none; position:relative;}
+    font-family:var(--font-mono); font-size:clamp(11px,3.6vw,20px); font-weight:700; cursor:pointer; user-select:none; position:relative;}
   .sc.given{background:#20232a; color:var(--text); cursor:default;}
   .sc.selected{background:#3a1414;}
   .sc.conflict{color:var(--red); }
   .sc.boxR{border-right:2px solid var(--red);}
   .sc.boxB{border-bottom:2px solid var(--red);}
-  .padnum{display:grid; grid-template-columns:repeat(6,1fr); gap:6px; width:min(92vw,480px);}
+  .padnum{display:grid; grid-template-columns:repeat(5,1fr); gap:6px; width:min(92vw,480px);}
   .padnum button{padding:12px 0; font-size:1.1rem; font-weight:700; background:var(--panel2);
     border:1px solid var(--gridline); border-radius:8px; color:var(--text);}
   .padnum button:active{background:var(--red);}
 
   /* ---- Word hunt ---- */
+  .whGridWrap{position:relative; width:min(92vw,460px); aspect-ratio:1;}
   #whGrid{display:grid; gap:1px; background:var(--gridline); border:2px solid var(--red); border-radius:6px; overflow:hidden;
-    width:min(92vw,460px); aspect-ratio:1; touch-action:none;}
+    width:100%; height:100%; touch-action:none;}
+  .whOverlay{position:absolute; inset:0; pointer-events:none; overflow:visible;}
   .wc{background:var(--panel2); display:flex; align-items:center; justify-content:center;
     font-size:clamp(9px,3vw,16px); font-weight:700; user-select:none;}
-  .wc.path{background:#5c1a1a;}
-  .wc.found{background:var(--green); color:#04240f;}
+  .wc.found{color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.7);}
   #whWords{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:480px;}
   .wchip{background:var(--panel2); border:1px solid var(--gridline); padding:4px 10px; border-radius:20px; font-size:.75rem; color:var(--muted);}
   .wchip.done{background:var(--green); color:#04240f; border-color:var(--green); text-decoration:line-through;}
@@ -322,7 +323,7 @@ function winModal(gameId, level, seconds, extraText){
 }
 
 /* =========================================================
-   GAME 1: SUDOKU (6x6, boxes 2x3) — levels scale clues removed
+   GAME 1: SUDOKU (9x9, boxes 3x3) — levels scale clues removed
    ========================================================= */
 function renderSudoku(level){
   const meta = GAME_META.sudoku;
@@ -333,37 +334,40 @@ function renderSudoku(level){
 
   const rng = rngFor("sudoku", level);
   const t = difficultyT(level);
+  const N = 9, BOX = 3;
 
+  // Classic box-shift base pattern: guaranteed valid rows/cols/boxes.
   function genSolution(){
-    return [
-      [1,2,3,4,5,6],
-      [4,5,6,1,2,3],
-      [2,3,1,5,6,4],
-      [5,6,4,2,3,1],
-      [3,1,2,6,4,5],
-      [6,4,5,3,1,2]
-    ];
+    const g = [];
+    for(let r=0;r<N;r++){
+      const row = [];
+      for(let c=0;c<N;c++){
+        row.push(((BOX*(r%BOX) + Math.floor(r/BOX) + c) % N) + 1);
+      }
+      g.push(row);
+    }
+    return g;
   }
 
   let solution = genSolution();
-  const mapping = shuffleRng([1,2,3,4,5,6], rng);
+  const mapping = shuffleRng([1,2,3,4,5,6,7,8,9], rng);
   solution = solution.map(row=>row.map(v=>mapping[v-1]));
   function shuffleBands(grid){
     const bandOrder = shuffleRng([0,1,2], rng);
-    const rowsWithinBand = [shuffleRng([0,1],rng), shuffleRng([0,1],rng), shuffleRng([0,1],rng)];
+    const rowsWithinBand = [shuffleRng([0,1,2],rng), shuffleRng([0,1,2],rng), shuffleRng([0,1,2],rng)];
     const newGrid = [];
-    bandOrder.forEach((band,i)=>{ rowsWithinBand[i].forEach(r=>{ newGrid.push(grid[band*2+r]); }); });
+    bandOrder.forEach((band,i)=>{ rowsWithinBand[i].forEach(r=>{ newGrid.push(grid[band*BOX+r]); }); });
     return newGrid;
   }
   solution = shuffleBands(solution);
   function transpose(g){ return g[0].map((_,c)=>g.map(row=>row[c])); }
   solution = transpose(shuffleBands(transpose(solution)));
 
-  // Difficulty: remove 10 (easy) up to 28 (hard) of the 36 cells.
-  const removeCount = Math.round(10 + t*18);
+  // Difficulty: remove 36 (easy, ~45 clues) up to 54 (hard, ~27 clues) of the 81 cells.
+  const removeCount = Math.round(36 + t*18);
   const puzzle = solution.map(row=>row.slice());
   const cellsIdx = [];
-  for(let r=0;r<6;r++) for(let c=0;c<6;c++) cellsIdx.push([r,c]);
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++) cellsIdx.push([r,c]);
   shuffleRng(cellsIdx, rng).slice(0, removeCount).forEach(([r,c])=>{ puzzle[r][c] = 0; });
 
   const given = puzzle.map(row=>row.map(v=>v!==0));
@@ -399,12 +403,12 @@ function renderSudoku(level){
 
   function conflicts(r,c,val){
     if(!val) return false;
-    for(let i=0;i<6;i++){
+    for(let i=0;i<N;i++){
       if(i!==c && board[r][i]===val) return true;
       if(i!==r && board[i][c]===val) return true;
     }
-    const br = Math.floor(r/2)*2, bc = Math.floor(c/3)*3;
-    for(let rr=br; rr<br+2; rr++) for(let cc=bc; cc<bc+3; cc++){
+    const br = Math.floor(r/BOX)*BOX, bc = Math.floor(c/BOX)*BOX;
+    for(let rr=br; rr<br+BOX; rr++) for(let cc=bc; cc<bc+BOX; cc++){
       if((rr!==r||cc!==c) && board[rr][cc]===val) return true;
     }
     return false;
@@ -412,13 +416,13 @@ function renderSudoku(level){
 
   function draw(){
     gridEl.innerHTML = "";
-    for(let r=0;r<6;r++){
-      for(let c=0;c<6;c++){
+    for(let r=0;r<N;r++){
+      for(let c=0;c<N;c++){
         const cell = document.createElement("div");
         cell.className = "sc";
         if(given[r][c]) cell.classList.add("given");
         if(c===2 || c===5) cell.classList.add("boxR");
-        if(r===1 || r===3) cell.classList.add("boxB");
+        if(r===2 || r===5) cell.classList.add("boxB");
         if(selected && selected[0]===r && selected[1]===c) cell.classList.add("selected");
         const val = board[r][c];
         cell.textContent = val || "";
@@ -433,7 +437,7 @@ function renderSudoku(level){
     }
   }
 
-  for(let n=1;n<=6;n++){
+  for(let n=1;n<=9;n++){
     const b = document.createElement("button");
     b.textContent = n;
     b.onclick = ()=>{
@@ -458,7 +462,7 @@ function renderSudoku(level){
   padEl.appendChild(eraseBtn);
 
   function checkWin(){
-    for(let r=0;r<6;r++) for(let c=0;c<6;c++){
+    for(let r=0;r<N;r++) for(let c=0;c<N;c++){
       if(board[r][c]===0 || board[r][c]!==solution[r][c]) return;
     }
     timer.stop();
@@ -477,6 +481,7 @@ const WORD_BANK = [
   "DRS","TURBO","APEX","GRID","MONACO","SILVERSTONE","MONZA","POLE","CHEQUERED","SAFETYCAR",
   "SLIPSTREAM","UNDERCUT","PADDOCK","TELEMETRY","CHASSIS","GEARBOX","HALO","FORMATION"
 ];
+const WH_COLORS = ["#00d26a","#ffb400","#3671c6","#ff8000","#27f4d2","#ff87bc","#64c4ff","#e10600","#cedc00","#a78bfa"];
 
 function renderWordHunt(level){
   const meta = GAME_META.wordhunt;
@@ -535,9 +540,15 @@ function renderWordHunt(level){
   controls.appendChild(backBtn(()=>renderLevelSelect("wordhunt"), "← Levels")); controls.appendChild(retryBtn);
   topbar.appendChild(timeStat); topbar.appendChild(lvlStat); topbar.appendChild(controls);
 
+  const gridWrap = document.createElement("div");
+  gridWrap.className = "whGridWrap";
   const gridEl = document.createElement("div");
   gridEl.id = "whGrid";
   gridEl.style.gridTemplateColumns = `repeat(${SIZE},1fr)`;
+  const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  overlay.setAttribute("class", "whOverlay");
+  gridWrap.appendChild(gridEl);
+  gridWrap.appendChild(overlay);
 
   const wordsEl = document.createElement("div");
   wordsEl.id = "whWords";
@@ -553,7 +564,7 @@ function renderWordHunt(level){
   const msg = document.createElement("div"); msg.id="msg";
 
   wrap.appendChild(topbar);
-  wrap.appendChild(gridEl);
+  wrap.appendChild(gridWrap);
   wrap.appendChild(wordsEl);
   wrap.appendChild(msg);
   app.appendChild(wrap);
@@ -564,6 +575,7 @@ function renderWordHunt(level){
   let dragging = false;
   let path = [];
   const cellEls = [];
+  const foundPaths = []; // {path, color}
 
   function drawGrid(){
     gridEl.innerHTML = "";
@@ -574,7 +586,7 @@ function renderWordHunt(level){
         el.className = "wc";
         el.textContent = grid[r][c];
         el.dataset.r = r; el.dataset.c = c;
-        el.addEventListener("pointerdown", (e)=>{ dragging=true; path=[[r,c]]; updatePath(); e.preventDefault(); });
+        el.addEventListener("pointerdown", (e)=>{ dragging=true; path=[[r,c]]; redrawOverlay(); e.preventDefault(); });
         el.addEventListener("pointerenter", ()=>{ if(dragging){ extendPath(r,c); } });
         gridEl.appendChild(el);
         cellEls[r][c] = el;
@@ -583,22 +595,46 @@ function renderWordHunt(level){
   }
   drawGrid();
 
+  function cellCenter(r,c){
+    const wrapRect = gridWrap.getBoundingClientRect();
+    const rect = cellEls[r][c].getBoundingClientRect();
+    return { x: rect.left - wrapRect.left + rect.width/2, y: rect.top - wrapRect.top + rect.height/2, w: wrapRect.width };
+  }
+
+  function drawCapsule(svg, pathArr, color, opacity){
+    if(!pathArr.length) return;
+    const p0 = cellCenter(pathArr[0][0], pathArr[0][1]);
+    const p1 = cellCenter(pathArr[pathArr.length-1][0], pathArr[pathArr.length-1][1]);
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", p0.x); line.setAttribute("y1", p0.y);
+    line.setAttribute("x2", p1.x); line.setAttribute("y2", p1.y);
+    line.setAttribute("stroke-width", p0.w / SIZE * 0.72);
+    line.setAttribute("stroke-linecap", "round");
+    line.setAttribute("opacity", opacity);
+    line.style.stroke = color;
+    svg.appendChild(line);
+  }
+
+  function redrawOverlay(){
+    overlay.innerHTML = "";
+    const wrapRect = gridWrap.getBoundingClientRect();
+    overlay.setAttribute("width", wrapRect.width);
+    overlay.setAttribute("height", wrapRect.height);
+    foundPaths.forEach(fp=> drawCapsule(overlay, fp.path, fp.color, 0.55));
+    if(dragging && path.length) drawCapsule(overlay, path, "var(--red)", 0.4);
+  }
+
   function extendPath(r,c){
     const start = path[0];
     const dr = r - start[0], dc = c - start[1];
     const steps = Math.max(Math.abs(dr), Math.abs(dc));
-    if(steps===0){ path=[start]; updatePath(); return; }
+    if(steps===0){ path=[start]; redrawOverlay(); return; }
     const sdr = Math.sign(dr), sdc = Math.sign(dc);
     if(!(dr===0 || dc===0 || Math.abs(dr)===Math.abs(dc))) return;
     const np = [];
     for(let i=0;i<=steps;i++) np.push([start[0]+sdr*i, start[1]+sdc*i]);
     path = np;
-    updatePath();
-  }
-
-  function updatePath(){
-    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++) cellEls[r][c].classList.remove("path");
-    path.forEach(([r,c])=> cellEls[r][c].classList.add("path"));
+    redrawOverlay();
   }
 
   function endDrag(){
@@ -612,60 +648,159 @@ function renderWordHunt(level){
     }
     if(matchWord){
       found.add(matchWord);
+      const color = WH_COLORS[foundPaths.length % WH_COLORS.length];
+      foundPaths.push({ path, color });
       path.forEach(([r,c])=> cellEls[r][c].classList.add("found"));
       const chip = wordsEl.querySelector(`[data-word="${matchWord}"]`);
-      if(chip) chip.classList.add("done");
+      if(chip){ chip.classList.add("done"); chip.style.background = color; chip.style.borderColor = color; chip.style.color = "#04240f"; }
       msg.className = ""; msg.textContent = matchWord + " found!";
       if(found.size === placedWords.length){
         timer.stop();
         setTimeout(()=> winModal("wordhunt", level, timer.val(), "All F1 terms located. "), 300);
       }
-    } else {
-      path.forEach(([r,c])=> cellEls[r][c].classList.remove("path"));
     }
     path = [];
+    redrawOverlay();
   }
   window.addEventListener("pointerup", endDrag);
+  window.addEventListener("resize", redrawOverlay);
 }
 
 /* =========================================================
-   GAME 3: CROSSWORD — levels scale number of stacked word-pairs
-   Each pair is placed in its own row-block (across word + down word
-   sharing the same first letter/cell), separated by a blank row from
-   the next block, so pairs can never collide with each other.
+   GAME 3: CROSSWORD — a real interlocking grid built from a shared
+   word bank. Words are placed one at a time, each new word required
+   to cross an already-placed word at a matching letter (like a real
+   crossword), with adjacency checks so words never accidentally
+   fuse together. Levels scale how many words get placed.
    ========================================================= */
-const CROSSWORD_BANK = [
-  {a:{w:"PITS",clue:"Where teams service the cars"},   d:{w:"PODIUM",clue:"Top-3 finish ceremony"}},
-  {a:{w:"TURBO",clue:"Forced-induction hybrid-era power unit tech"}, d:{w:"TRACK",clue:"The circuit itself"}},
-  {a:{w:"DRS",clue:"Drag Reduction System (abbr.)"},    d:{w:"DNF",clue:"Did Not Finish (abbr.)"}},
-  {a:{w:"GRID",clue:"Starting formation for the race"}, d:{w:"GEAR",clue:"What a driver shifts"}},
-  {a:{w:"POLE",clue:"Fastest qualifier's starting spot"},d:{w:"PIT",clue:"Where a car stops to change tyres"}},
-  {a:{w:"APEX",clue:"Ideal cornering point of a corner"},d:{w:"AERO",clue:"Downforce-shaping bodywork, for short"}},
-  {a:{w:"FLAG",clue:"Chequered ... at the finish"},     d:{w:"FIA",clue:"The sport's governing body (abbr.)"}},
-  {a:{w:"LAPS",clue:"Circuits completed during a race"}, d:{w:"LIGHTS",clue:"Five red ... before the start"}},
-  {a:{w:"CREW",clue:"Pit ... changing the tyres"},      d:{w:"CORNER",clue:"A bend in the circuit"}},
-  {a:{w:"RACE",clue:"Sunday's main event"},              d:{w:"RED",clue:"Bull energy-drink team, informally"}},
-  {a:{w:"WING",clue:"Front or rear aero element"},       d:{w:"WET",clue:"Tyre compound for rain"}},
-  {a:{w:"BOX",clue:"Radio call meaning 'pit now'"},      d:{w:"BOOST",clue:"Extra hybrid power on demand"}},
-  {a:{w:"ENGINE",clue:"The power unit"},                 d:{w:"ERA",clue:"The hybrid ..., since 2014"}},
-  {a:{w:"MEDIUM",clue:"Yellow-marked tyre compound"},    d:{w:"MONACO",clue:"Glamorous street circuit"}},
-  {a:{w:"HARD",clue:"White-marked, most durable tyre"},  d:{w:"HALO",clue:"Cockpit safety device since 2018"}},
-  {a:{w:"SOFT",clue:"Red-marked, fastest but shortest-lived tyre"}, d:{w:"SPIN",clue:"Losing control and rotating"}}
+const CROSSWORD_WORD_BANK = [
+  {w:"PITS",clue:"Where teams service the cars"},
+  {w:"PODIUM",clue:"Top-3 finish ceremony"},
+  {w:"PIT",clue:"Where a car stops to change tyres"},
+  {w:"POLE",clue:"Fastest qualifier's starting spot"},
+  {w:"TURBO",clue:"Forced-induction hybrid-era power unit tech"},
+  {w:"TRACK",clue:"The circuit itself"},
+  {w:"TYRE",clue:"What Pirelli supplies"},
+  {w:"DRS",clue:"Drag Reduction System (abbr.)"},
+  {w:"DNF",clue:"Did Not Finish (abbr.)"},
+  {w:"GRID",clue:"Starting formation for the race"},
+  {w:"GEAR",clue:"What a driver shifts"},
+  {w:"GEARBOX",clue:"Housing for the transmission"},
+  {w:"APEX",clue:"Ideal cornering point of a corner"},
+  {w:"AERO",clue:"Downforce-shaping bodywork, for short"},
+  {w:"FLAG",clue:"Chequered ... at the finish"},
+  {w:"FIA",clue:"The sport's governing body (abbr.)"},
+  {w:"LAPS",clue:"Circuits completed during a race"},
+  {w:"LIGHTS",clue:"Five red ... before the start"},
+  {w:"CREW",clue:"Pit ... changing the tyres"},
+  {w:"CORNER",clue:"A bend in the circuit"},
+  {w:"RACE",clue:"Sunday's main event"},
+  {w:"RED",clue:"Bull energy-drink team, informally"},
+  {w:"WING",clue:"Front or rear aero element"},
+  {w:"WET",clue:"Tyre compound for rain"},
+  {w:"BOX",clue:"Radio call meaning 'pit now'"},
+  {w:"BOOST",clue:"Extra hybrid power on demand"},
+  {w:"ENGINE",clue:"The power unit"},
+  {w:"ERA",clue:"The hybrid ..., since 2014"},
+  {w:"MEDIUM",clue:"Yellow-marked tyre compound"},
+  {w:"MONACO",clue:"Glamorous street circuit"},
+  {w:"MONZA",clue:"Italian 'Temple of Speed'"},
+  {w:"HARD",clue:"White-marked, most durable tyre"},
+  {w:"HALO",clue:"Cockpit safety device since 2018"},
+  {w:"SOFT",clue:"Red-marked, fastest but shortest-lived tyre"},
+  {w:"SPIN",clue:"Losing control and rotating"},
+  {w:"CHASSIS",clue:"The car's structural frame"},
+  {w:"PADDOCK",clue:"Team garages and hospitality area"},
+  {w:"UNDERCUT",clue:"Pitting early to gain track position"},
+  {w:"FORMATION",clue:"... lap before the race start"},
+  {w:"SLIPSTREAM",clue:"Aero tow behind another car"}
 ];
 
-function buildCrosswordFromPairs(pairs){
-  const grid = [];
-  const entries = [];
-  let row = 0;
-  let maxCols = 0;
-  pairs.forEach(pair=>{
-    const aw = pair.a.w, dw = pair.d.w;
-    entries.push({answer:aw, clue:pair.a.clue, row, col:0, dir:"A"});
-    entries.push({answer:dw, clue:pair.d.clue, row, col:0, dir:"D"});
-    maxCols = Math.max(maxCols, aw.length);
-    row += dw.length + 1; // blank separator row before next block
+function buildInterlockingCrosswordAttempt(words, rng){
+  const cellLetter = {};
+  const placed = [];
+  function key(r,c){ return r+","+c; }
+
+  function canPlace(word, row, col, dir){
+    const dr = dir==="D"?1:0, dc = dir==="A"?1:0;
+    if(cellLetter[key(row-dr, col-dc)] !== undefined) return false;
+    if(cellLetter[key(row+dr*word.length, col+dc*word.length)] !== undefined) return false;
+    let crossings = 0;
+    for(let i=0;i<word.length;i++){
+      const r = row+dr*i, c = col+dc*i;
+      const existing = cellLetter[key(r,c)];
+      if(existing !== undefined){
+        if(existing !== word[i]) return false;
+        crossings++;
+      } else {
+        // perpendicular neighbors must be empty so parallel words never touch directly
+        if(cellLetter[key(r+dc, c+dr)] !== undefined) return false;
+        if(cellLetter[key(r-dc, c-dr)] !== undefined) return false;
+      }
+    }
+    return crossings;
+  }
+
+  function place(entry, row, col, dir){
+    const dr = dir==="D"?1:0, dc = dir==="A"?1:0;
+    for(let i=0;i<entry.w.length;i++){
+      cellLetter[key(row+dr*i, col+dc*i)] = entry.w[i];
+    }
+    placed.push({answer:entry.w, clue:entry.clue, row, col, dir});
+  }
+
+  place(words[0], 0, 0, "A");
+
+  let remaining = words.slice(1);
+  for(let pass=0; pass<8 && remaining.length; pass++){
+    const stillRemaining = [];
+    remaining.forEach(entry=>{
+      const candidates = [];
+      for(let i=0;i<entry.w.length;i++){
+        const letter = entry.w[i];
+        Object.keys(cellLetter).forEach(k=>{
+          if(cellLetter[k] !== letter) return;
+          const [er,ec] = k.split(",").map(Number);
+          const acrossRow = er, acrossCol = ec - i;
+          if(canPlace(entry.w, acrossRow, acrossCol, "A")) candidates.push([acrossRow, acrossCol, "A"]);
+          const downRow = er - i, downCol = ec;
+          if(canPlace(entry.w, downRow, downCol, "D")) candidates.push([downRow, downCol, "D"]);
+        });
+      }
+      if(candidates.length){
+        const [row,col,dir] = shuffleRng(candidates, rng)[0];
+        place(entry, row, col, dir);
+      } else {
+        stillRemaining.push(entry);
+      }
+    });
+    remaining = stillRemaining;
+  }
+
+  let minR=Infinity,minC=Infinity,maxR=-Infinity,maxC=-Infinity;
+  placed.forEach(e=>{
+    const dr = e.dir==="D"?1:0, dc = e.dir==="A"?1:0;
+    for(let i=0;i<e.answer.length;i++){
+      const r=e.row+dr*i, c=e.col+dc*i;
+      minR=Math.min(minR,r); maxR=Math.max(maxR,r);
+      minC=Math.min(minC,c); maxC=Math.max(maxC,c);
+    }
   });
-  return {entries, rows: row - 1, cols: maxCols};
+  placed.forEach(e=>{ e.row -= minR; e.col -= minC; });
+  return { entries: placed, rows: maxR-minR+1, cols: maxC-minC+1 };
+}
+
+// Runs several placement attempts (different tie-break orderings, always led by
+// the longest word for a strong anchor) and keeps whichever fits the most words in.
+function buildInterlockingCrossword(words, rng){
+  let best = null;
+  for(let attempt=0; attempt<6; attempt++){
+    const order = shuffleRng(words, rng).sort((a,b)=> b.w.length - a.w.length);
+    const result = buildInterlockingCrosswordAttempt(order, rng);
+    if(!best || result.entries.length > best.entries.length) best = result;
+    if(best.entries.length === words.length) break;
+  }
+  return best;
 }
 
 function renderCrossword(level){
@@ -675,11 +810,11 @@ function renderCrossword(level){
 
   const rng = rngFor("crossword", level);
   const t = difficultyT(level);
-  const pairCount = clamp(Math.round(3 + t*(CROSSWORD_BANK.length-3)), 3, CROSSWORD_BANK.length);
-  const pairs = shuffleRng(CROSSWORD_BANK, rng).slice(0, pairCount)
-    .sort(()=> 0); // keep shuffled order for variety, order doesn't affect correctness
+  const wordCount = clamp(Math.round(6 + t*10), 6, CROSSWORD_WORD_BANK.length);
+  const chosen = shuffleRng(CROSSWORD_WORD_BANK, rng).slice(0, wordCount);
+  const placementOrder = chosen.slice().sort((a,b)=> b.w.length - a.w.length);
 
-  const built = buildCrosswordFromPairs(pairs);
+  const built = buildInterlockingCrossword(placementOrder, rng);
   const entries = built.entries;
   const rows = built.rows, cols = built.cols;
 
