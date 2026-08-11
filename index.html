@@ -4,11 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Grid Prix — F1 Mind Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 <style>
   :root{
     --red:#e10600; --red-dark:#a30500; --dark:#0c0c0e; --panel:#17181c;
     --panel2:#1f2126; --text:#f2f2f2; --muted:#9a9ba2; --green:#00d26a;
     --amber:#ffb400; --gridline:#33353b;
+    --font-display:"Barlow Condensed",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:"Orbitron",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;background:var(--dark);color:var(--text);
@@ -23,8 +28,9 @@
   .stripe{height:6px; background:repeating-linear-gradient(90deg,#fff 0 24px,var(--red) 24px 48px);}
 
   header{padding:14px 16px 10px; text-align:center; position:relative;}
-  header h1{margin:0; font-size:1.5rem; letter-spacing:1px; font-weight:800;
-    text-transform:uppercase;}
+  header h1{margin:0; font-family:var(--font-display); font-size:2rem; letter-spacing:1px; font-weight:800;
+    text-transform:uppercase; display:flex; align-items:center; justify-content:center; gap:8px;}
+  header h1 svg{width:1em; height:1em; color:var(--red);}
   header h1 span{color:var(--red);}
   header p{margin:4px 0 0; color:var(--muted); font-size:.8rem;}
 
@@ -37,7 +43,7 @@
   .card:active{transform:scale(.97);}
   .card:hover{border-color:var(--red);}
   .card .num{position:absolute; top:10px; right:14px; font-size:2.4rem; font-weight:900; color:rgba(255,255,255,.06);}
-  .card h2{margin:0 0 6px; font-size:1.15rem;}
+  .card h2{margin:0 0 6px; font-family:var(--font-display); font-size:1.4rem; letter-spacing:.3px;}
   .card p{margin:0; color:var(--muted); font-size:.85rem; line-height:1.4;}
   .card .best{margin-top:10px; font-size:.75rem; color:var(--amber);}
   .card .barwrap{margin-top:10px; height:6px; border-radius:4px; background:var(--gridline); overflow:hidden;}
@@ -51,17 +57,20 @@
   .btn:active{transform:scale(.96);}
   .btn.primary{background:var(--red); border-color:var(--red-dark);}
   .btn.small{padding:6px 10px; font-size:.75rem;}
-  .stat{background:var(--panel2); border:1px solid var(--gridline); border-radius:8px; padding:6px 12px; font-size:.8rem; color:var(--muted);}
-  .stat b{color:var(--text);}
+  .stat{background:var(--panel2); border:1px solid var(--gridline); border-radius:8px; padding:6px 12px; font-size:.8rem; color:var(--muted);
+    display:inline-flex; align-items:center; gap:6px;}
+  .stat svg{width:1em; height:1em; color:var(--amber);}
+  .stat b{color:var(--text); font-family:var(--font-mono); font-weight:700; letter-spacing:.5px;}
   #msg{min-height:22px; font-size:.9rem; font-weight:600; color:var(--green); text-align:center;}
   #msg.err{color:var(--red);}
 
   /* ---- Level select ---- */
   .lvlHeader{display:flex; flex-direction:column; align-items:center; gap:4px; width:100%; max-width:640px;}
+  .lvlHeader h2{font-family:var(--font-display); font-size:1.6rem; letter-spacing:.3px;}
   .lvlProgress{font-size:.8rem; color:var(--muted);}
   #levelGrid{display:grid; grid-template-columns:repeat(10,1fr); gap:6px; width:100%; max-width:640px;}
   .lvlbtn{aspect-ratio:1; border-radius:8px; border:1px solid var(--gridline); background:var(--panel2);
-    color:var(--text); font-size:.75rem; font-weight:700; display:flex; align-items:center; justify-content:center;
+    color:var(--text); font-family:var(--font-mono); font-size:.75rem; font-weight:700; display:flex; align-items:center; justify-content:center;
     cursor:pointer; position:relative;}
   .lvlbtn.locked{opacity:.35; cursor:not-allowed;}
   .lvlbtn.done{background:var(--green); color:#04240f; border-color:var(--green);}
@@ -72,7 +81,7 @@
   #sudokuGrid{display:grid; grid-template-columns:repeat(6,1fr); gap:2px; background:var(--gridline);
     border:2px solid var(--red); border-radius:6px; width:min(92vw,480px); aspect-ratio:1; overflow:hidden;}
   .sc{background:var(--panel2); display:flex; align-items:center; justify-content:center;
-    font-size:clamp(14px,4.5vw,22px); font-weight:700; cursor:pointer; user-select:none; position:relative;}
+    font-family:var(--font-mono); font-size:clamp(14px,4.5vw,22px); font-weight:700; cursor:pointer; user-select:none; position:relative;}
   .sc.given{background:#20232a; color:var(--text); cursor:default;}
   .sc.selected{background:#3a1414;}
   .sc.conflict{color:var(--red); }
@@ -124,13 +133,13 @@
 <body>
 <div class="stripe"></div>
 <header>
-  <h1>GRID <span>PRIX</span></h1>
+  <h1><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M375.7 20.11l-15.6 3.53c5.5 24.18 10.9 48.4 16.4 72.61-12.4-1.91-22.7-3.61-34-5.36l6.5 28.91c12.4 1.6 22.6 3.6 34 5.3l7.6 33.6c9.4 41.6 18.9 83.3 28.3 124.9-12.4-1.9-22.6-3.7-34-5.4l6.5 28.8c12.3 2.1 22.7 3.4 34 5.4 13.6 59.8 27 119.7 40.6 179.5l15.6-3.7c-37.4-162.5-73.8-328.9-105.9-468.09zM391.4 307c-12.9-1.9-23.9-3.4-33.7-4l7.4 32.9h.4c12.2 1.3 22.5 3.1 33.5 4.7zm-33.7-4l-6.7-29.5c-14.4-1.5-24.2-1.5-32.7.3l7 31.3c10.4-2.4 20.6-2.9 32.4-2.1zm-32.4 2.1c-10.3 2.4-19.7 6.3-30.1 12l7.4 32.7c9.8-5.2 20.1-11.2 29.8-13.4zm-30.1 12l-6.6-29.5c-7.8 4.8-17.2 11.1-28.6 18.8l6.5 28.9c10.8-7.4 20.2-13.4 28.7-18.2zm-28.7 18.2c-10.3 7-18.9 13-28.4 19.5l7.6 33.2c10-7.2 18.8-13.1 28.3-19.6zm-28.4 19.5l-6.5-28.9c-10.8 7.4-20.1 13.4-28.7 18.2l6.7 29.5c7.8-4.8 17.2-11.1 28.5-18.8zm-28.5 18.8c-12.3 7.5-21.2 11.7-29.7 13.7l7 31.2c10.4-2.4 19.8-6.4 30.1-12.1zm-29.7 13.7l-7.1-31.2c-10.3 2.3-20.5 2.8-32.3 2.1l6.7 29.5c14.3 1.5 24.1 1.5 32.7-.4zm-32.7.4c-9.1-.9-20.3-2.6-33.9-4.7l7.6 33.6s16 2.9 33.7 4zm-33.9-4.7l-6.5-28.8c-12.35-2-22.71-3.4-34.02-5.4l6.53 28.8c12.36 1.8 22.69 3.8 33.99 5.4zm-6.5-28.8c12.9 1.9 23.9 3.4 33.7 4l-7.5-32.9c-9.1-1-20.2-2.6-33.8-4.7zm-7.6-33.6l-6.52-28.9c-12.39-1.8-22.66-3.7-34.02-5.3l6.52 28.8c12.35 2 22.71 3.4 34.02 5.4zm-6.52-28.9c12.82 2 23.92 3.5 33.72 4.1l-7.5-32.9c-9.1-1-20.19-2.6-33.82-4.7zm-7.6-33.6l-6.52-28.9c-12.38-1.8-22.66-3.6-34.02-5.2l6.52 28.8c12.38 1.9 22.64 3.7 34.02 5.3zm-6.52-28.9c12.89 2 23.94 3.5 33.74 4.1l-7.5-33c-9.07-.9-20.22-2.5-33.84-4.7zm-7.6-33.6l-6.52-28.8c-12.33-2.1-22.71-3.3-34.02-5.3l6.52 28.9c12.36 1.9 22.66 3.6 34.02 5.2zm-6.52-28.8c12.89 2 23.93 3.5 33.72 4l-7.45-32.9c-11.72-2.1-24.9-3.3-33.87-4.7zm33.72 4l6.64 29.5c14.4 1.6 24.2 1.5 32.7-.4l-7-31.2c-10.4 2.4-20.6 2.9-32.34 2.1zm32.24-2.1c10.4-2.3 19.8-6.3 30.2-12l-7.5-32.9c-12.3 7.5-21.2 11.7-29.7 13.7zm-7-31.2c-.1 0-.1 0 0 0zm37.2 19.2l6.6 29.5c7.8-4.8 17.2-11 28.6-18.8l-6.6-28.8c-10.7 7.3-20.1 13.4-28.6 18.1zm28.6-18.1c10.3-7 18.9-13.1 28.5-19.4l-7.6-33.66c-10.4 7.05-19 13.01-28.5 19.56zm28.5-19.4l6.5 28.7c10.8-7.3 20.1-13.4 28.7-18.1l-6.7-29.5c-7.8 4.8-17.2 11.1-28.5 18.9zm28.5-18.9c12.3-7.55 21.2-11.74 29.7-13.68l-7-31.2c-11.1 3-21.8 7.36-30.1 11.95zm29.7-13.68l7.1 31.28c10.3-2.4 20.5-2.9 32.3-2.2l-6.7-29.53c-14.3-1.51-24.1-1.48-32.7.45zm32.7-.45c9.1.97 20.3 2.59 33.9 4.72l-7.6-33.59s-16.1-2.91-33.7-4.03zm6.7 29.53l7.4 32.8c9.2 1 20.3 2.6 33.9 4.8l-7.6-33.5c-12.9-2-23.9-3.5-33.7-4.1zm41.3 37.6l6.5 28.8c12.4 1.9 22.7 3.7 34.1 5.3l-6.6-28.8c-12.4-1.9-22.7-3.7-34-5.3zm6.5 28.8c-12.8-2-23.9-3.5-33.7-4l7.5 33c9.1.9 20.2 2.5 33.8 4.6zm7.6 33.6l6.6 28.9c12.4 2 22.7 3.4 34 5.3l-6.5-28.9c-12.4-1.8-22.7-3.7-34.1-5.3zm6.6 28.9c-12.9-2-24-3.5-33.8-4l7.5 32.9c9.1.8 20.2 2.6 33.9 4.7zm-33.8-4l-6.6-29.5c-14.4-1.6-24.2-1.5-32.7.4l7 31.1c10.3-2.3 20.6-2.8 32.3-2zm-32.3 2c-10.3 2.5-19.8 6.4-30.1 12l7.5 33c12.3-7.5 21.1-11.8 29.7-13.8zm-30.1 12l-6.7-29.5c-7.8 4.9-17.1 11-28.5 18.9l6.5 28.8c10.8-7.3 20.1-13.5 28.7-18.2zm-28.7 18.2c-10.5 6.9-18.7 13.2-28.4 19.5l7.6 33.6c10.4-7 19-13 28.4-19.5zM224 292.2l-6.5-28.8c-10.8 7.3-20.1 13.4-28.7 18.2l6.7 29.5c7.8-4.8 17.1-11.1 28.5-18.9zm-28.5 18.9c-12.3 7.5-21.2 11.7-29.7 13.6l7 31.4c10.3-2.4 19.8-6.4 30.1-12zm-29.7 13.6l-7.1-31.1c-10.3 2.3-20.5 2.8-32.2 2.1l6.5 29.5c14.4 1.5 24.2 1.5 32.8-.5zm-7.1-31.1c10.3-2.4 19.8-6.2 30.1-11.9l-7.4-33.1c-12.3 7.7-21.2 11.9-29.8 13.7zm-7.1-31.3l-7-31.2c-10.3 2.4-20.5 3-32.2 2.2l6.6 29.5c14.3 1.5 24.1 1.5 32.6-.5zm-7-31.2c10.3-2.3 19.7-6.3 30.1-12l-7.5-32.9c-12.3 7.6-21.1 11.9-29.7 13.7zm30.1-12l6.7 29.5c7.8-4.6 17.1-11 28.5-18.8l-6.5-28.8c-10.8 7.3-20.1 13.4-28.7 18.1zm28.7-18c10.2-7.2 18.9-13 28.4-19.5l-7.6-33.7c-10.3 7.2-19 13.1-28.4 19.6zm28.4-19.5l6.5 28.8c10.8-7.3 20.1-13.4 28.7-18.1l-6.7-29.5c-7.8 4.7-17.1 11-28.5 18.8zm28.5-18.9c12.3-7.6 21.2-11.8 29.7-13.6l-7-31.2c-10.3 2.2-19.8 6.1-30.1 11.8zm29.7-13.6l7.1 31.1c10.3-2.3 20.5-2.9 32.3-2.1l-6.7-29.5c-14.3-1.6-24.1-1.5-32.7.5zm7.1 31.1c-10.3 2.4-19.8 6.4-30.1 12l7.4 32.9c12.3-7.5 21.2-11.8 29.8-13.6zm-58.8 30.1c-10.3 7.1-19 13-28.4 19.5l7.6 33.7c10.3-7.2 18.9-13 28.4-19.5z"/></svg>GRID <span>PRIX</span></h1>
   <p id="tagline">Mind games from the paddock — Sudoku, Word Hunt &amp; Crossword</p>
 </header>
 
 <main id="app"></main>
 
-<footer>Unofficial fan-made puzzle game. Not affiliated with F1, FIA or any team.</footer>
+<footer>Unofficial fan-made puzzle game. Not affiliated with F1, FIA or any team.<br>Icons by <a href="https://game-icons.net" style="color:inherit;">game-icons.net</a> (CC BY 3.0).</footer>
 
 <script>
 (function(){
@@ -363,7 +372,7 @@ function renderSudoku(level){
 
   const topbar = document.createElement("div");
   topbar.className = "topbar";
-  const timeStat = document.createElement("div"); timeStat.className="stat"; timeStat.innerHTML="⏱ <b>0:00</b>";
+  const timeStat = document.createElement("div"); timeStat.className="stat"; timeStat.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>0:00</b>';
   const lvlStat = document.createElement("div"); lvlStat.className="stat"; lvlStat.innerHTML=`Level <b>${level}</b>/${MAX_LEVEL}`;
   const controls = document.createElement("div"); controls.style.display="flex"; controls.style.gap="8px";
   const retryBtn = document.createElement("button"); retryBtn.className="btn small"; retryBtn.textContent="Retry";
@@ -385,7 +394,7 @@ function renderSudoku(level){
   wrap.appendChild(padEl);
   app.appendChild(wrap);
 
-  const timer = Timer((t)=>{ timeStat.innerHTML = `⏱ <b>${fmtTime(t)}</b>`; });
+  const timer = Timer((t)=>{ timeStat.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>${fmtTime(t)}</b>`; });
   timer.start();
 
   function conflicts(r,c,val){
@@ -518,7 +527,7 @@ function renderWordHunt(level){
 
   const topbar = document.createElement("div");
   topbar.className = "topbar";
-  const timeStat = document.createElement("div"); timeStat.className="stat"; timeStat.innerHTML="⏱ <b>0:00</b>";
+  const timeStat = document.createElement("div"); timeStat.className="stat"; timeStat.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>0:00</b>';
   const lvlStat = document.createElement("div"); lvlStat.className="stat"; lvlStat.innerHTML=`Level <b>${level}</b>/${MAX_LEVEL}`;
   const controls = document.createElement("div"); controls.style.display="flex"; controls.style.gap="8px";
   const retryBtn = document.createElement("button"); retryBtn.className="btn small"; retryBtn.textContent="Retry";
@@ -549,7 +558,7 @@ function renderWordHunt(level){
   wrap.appendChild(msg);
   app.appendChild(wrap);
 
-  const timer = Timer((t)=>{ timeStat.innerHTML = `⏱ <b>${fmtTime(t)}</b>`; });
+  const timer = Timer((t)=>{ timeStat.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>${fmtTime(t)}</b>`; });
   timer.start();
 
   let dragging = false;
@@ -688,7 +697,7 @@ function renderCrossword(level){
 
   const topbar = document.createElement("div");
   topbar.className = "topbar";
-  const timeStat = document.createElement("div"); timeStat.className="stat"; timeStat.innerHTML="⏱ <b>0:00</b>";
+  const timeStat = document.createElement("div"); timeStat.className="stat"; timeStat.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>0:00</b>';
   const lvlStat = document.createElement("div"); lvlStat.className="stat"; lvlStat.innerHTML=`Level <b>${level}</b>/${MAX_LEVEL}`;
   const controls = document.createElement("div"); controls.style.display="flex"; controls.style.gap="8px";
   const checkBtn = document.createElement("button"); checkBtn.className="btn small"; checkBtn.textContent="Check";
@@ -715,7 +724,7 @@ function renderCrossword(level){
   wrap.appendChild(clueList);
   app.appendChild(wrap);
 
-  const timer = Timer((t)=>{ timeStat.innerHTML = `⏱ <b>${fmtTime(t)}</b>`; });
+  const timer = Timer((t)=>{ timeStat.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>${fmtTime(t)}</b>`; });
   timer.start();
 
   const cellData = {};
