@@ -132,7 +132,7 @@
   .raceCar{position:absolute; bottom:2px; left:-80px; width:64px; height:26px;
     animation:raceAcross 13s linear infinite;}
   .raceCar.lead{animation-delay:-6.4s; opacity:.55; transform:scale(.8);}
-  .raceCar svg{width:100%; height:100%; color:var(--red);}
+  .raceCar svg{width:100%; height:100%; color:var(--red); transform:scaleX(-1);}
   .raceCar.lead svg{color:var(--amber);}
   .raceCar .wheel{animation:wheelSpin .35s linear infinite; transform-origin:center;}
   @keyframes raceAcross{
