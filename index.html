@@ -669,6 +669,7 @@ const F1_CATEGORIES = {
   ]
 };
 const CATEGORY_NAMES = Object.keys(F1_CATEGORIES);
+const ALL_F1_WORDS = CATEGORY_NAMES.flatMap(cat => F1_CATEGORIES[cat]);
 
 // Picks a themed word pool for a level: rotates through categories so
 // nearby levels don't repeat the same theme, and pulls in a second
@@ -976,11 +977,10 @@ function renderCrossword(level){
   const rng = rngFor("crossword", level);
   const t = difficultyT(level);
   const wordCount = clamp(Math.round(6 + t*10), 6, 16);
-  const { entries: bankEntries, categoryLabel } = wordsForLevel(level, wordCount, null);
-  tagline.textContent = meta.tag + "  ·  " + categoryLabel + "  ·  Level " + level;
+  tagline.textContent = meta.tag + "  ·  Level " + level;
   app.innerHTML = "";
 
-  const chosen = shuffleRng(bankEntries, rng).slice(0, wordCount);
+  const chosen = shuffleRng(ALL_F1_WORDS, rng).slice(0, wordCount);
   const placementOrder = chosen.slice().sort((a,b)=> b.w.length - a.w.length);
 
   const built = buildInterlockingCrossword(placementOrder, rng);
