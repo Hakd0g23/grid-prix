@@ -122,7 +122,29 @@
   #cwClueList div.line{cursor:pointer;}
   #cwClueList div.line.solved{color:var(--green); text-decoration:line-through;}
 
-  footer{text-align:center; color:var(--muted); font-size:.7rem; padding:10px; opacity:.6;}
+  footer{text-align:center; color:var(--muted); font-size:.7rem; padding:10px 10px 46px; opacity:.6;}
+
+  /* ---- Racing strip decoration (empty-space flair) ---- */
+  .raceLane{position:fixed; left:0; right:0; bottom:0; height:34px; overflow:hidden; pointer-events:none; z-index:0;}
+  .raceLane::before{content:""; position:absolute; inset:0; top:2px;
+    background:repeating-linear-gradient(90deg,var(--gridline) 0 22px,transparent 22px 44px);
+    height:2px; top:50%; margin-top:-1px; opacity:.6;}
+  .raceCar{position:absolute; bottom:2px; left:-80px; width:64px; height:26px;
+    animation:raceAcross 13s linear infinite;}
+  .raceCar.lead{animation-delay:-6.4s; opacity:.55; transform:scale(.8);}
+  .raceCar svg{width:100%; height:100%; color:var(--red);}
+  .raceCar.lead svg{color:var(--amber);}
+  .raceCar .wheel{animation:wheelSpin .35s linear infinite; transform-origin:center;}
+  @keyframes raceAcross{
+    from{ left:-80px; }
+    to{ left:100%; }
+  }
+  @keyframes wheelSpin{ from{ transform:rotate(0deg);} to{ transform:rotate(360deg);} }
+  @media (prefers-reduced-motion: reduce){
+    .raceCar{ animation:none; left:20%; }
+    .raceCar .wheel{ animation:none; }
+  }
+  @media (max-width:520px){ .raceLane{ display:none; } }
 
   .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
   .modal{background:var(--panel); border:1px solid var(--red); border-radius:14px; padding:28px; text-align:center; max-width:340px;}
@@ -141,6 +163,31 @@
 <main id="app"></main>
 
 <footer>Unofficial fan-made puzzle game. Not affiliated with F1, FIA or any team.<br>Icons by <a href="https://game-icons.net" style="color:inherit;">game-icons.net</a> (CC BY 3.0).</footer>
+
+<div class="raceLane" aria-hidden="true">
+  <div class="raceCar lead">
+    <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+      <rect x="172" y="14" width="6" height="26" fill="currentColor"/>
+      <rect x="160" y="12" width="20" height="6" fill="currentColor"/>
+      <path d="M20,58 L28,46 Q50,30 80,30 L128,34 Q150,36 162,42 L170,44 L170,52 L150,56 L60,60 L28,60 Z" fill="currentColor"/>
+      <path d="M75,30 Q90,18 105,30 Z" fill="currentColor"/>
+      <rect x="4" y="52" width="26" height="6" fill="currentColor"/>
+      <g class="wheel"><circle cx="46" cy="64" r="15" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="46" y1="52" x2="46" y2="76" stroke="currentColor" stroke-width="2"/><line x1="34" y1="64" x2="58" y2="64" stroke="currentColor" stroke-width="2"/></g>
+      <g class="wheel"><circle cx="150" cy="62" r="15" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="150" y1="50" x2="150" y2="74" stroke="currentColor" stroke-width="2"/><line x1="138" y1="62" x2="162" y2="62" stroke="currentColor" stroke-width="2"/></g>
+    </svg>
+  </div>
+  <div class="raceCar">
+    <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+      <rect x="172" y="14" width="6" height="26" fill="currentColor"/>
+      <rect x="160" y="12" width="20" height="6" fill="currentColor"/>
+      <path d="M20,58 L28,46 Q50,30 80,30 L128,34 Q150,36 162,42 L170,44 L170,52 L150,56 L60,60 L28,60 Z" fill="currentColor"/>
+      <path d="M75,30 Q90,18 105,30 Z" fill="currentColor"/>
+      <rect x="4" y="52" width="26" height="6" fill="currentColor"/>
+      <g class="wheel"><circle cx="46" cy="64" r="15" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="46" y1="52" x2="46" y2="76" stroke="currentColor" stroke-width="2"/><line x1="34" y1="64" x2="58" y2="64" stroke="currentColor" stroke-width="2"/></g>
+      <g class="wheel"><circle cx="150" cy="62" r="15" fill="#0c0c0e" stroke="currentColor" stroke-width="4"/><line x1="150" y1="50" x2="150" y2="74" stroke="currentColor" stroke-width="2"/><line x1="138" y1="62" x2="162" y2="62" stroke="currentColor" stroke-width="2"/></g>
+    </svg>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -213,7 +260,7 @@ const app = document.getElementById("app");
 const tagline = document.getElementById("tagline");
 
 const GAME_META = {
-  sudoku:    {title:"Grid Prix Sudoku",   short:"Sudoku",    num:"44", desc:"6×6 number sudoku styled after a starting grid. Fill 1–6 with no repeats per row, column or box.", tag:"Fill every row, column & 2×3 sector with 1–6, no repeats."},
+  sudoku:    {title:"Grid Prix Sudoku",   short:"Sudoku",    num:"44", desc:"Classic 9×9 sudoku styled after a starting grid. Fill 1–9 with no repeats per row, column or box.", tag:"Fill every row, column & 3×3 box with 1–9, no repeats."},
   wordhunt:  {title:"Paddock Word Hunt",  short:"Word Hunt", num:"1",  desc:"Find hidden F1 terms — drivers, teams, tracks & jargon — hidden in the grid.", tag:"Drag across letters to find hidden F1 terms."},
   crossword: {title:"Pit Lane Crossword", short:"Crossword", num:"16", desc:"A quick crossword built entirely from Formula 1 knowledge.", tag:"Fill the grid using F1 knowledge."}
 };
