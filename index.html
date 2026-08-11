@@ -1064,15 +1064,15 @@ function buildRaceLane(){
   const lane = document.getElementById("raceLane");
   if(!lane) return;
   const total = 22;
-  const baseDuration = 15;
   for(let i=0;i<total;i++){
     const color = RACE_ACCENT_COLORS[i % RACE_ACCENT_COLORS.length];
     const car = document.createElement("div");
     car.className = "raceCar";
     car.style.color = color;
     car.style.left = (i/(total-1)*94).toFixed(1) + "%";
-    car.style.animationDuration = (baseDuration + (i % 5)).toFixed(1) + "s";
-    car.style.animationDelay = (-(i * baseDuration/total)).toFixed(2) + "s";
+    const duration = 8 + Math.random()*14; // 8-22s: real speed spread, faster cars overtake
+    car.style.animationDuration = duration.toFixed(2) + "s";
+    car.style.animationDelay = (-Math.random()*duration).toFixed(2) + "s"; // random start point in the loop
     car.innerHTML = carSVG();
     lane.appendChild(car);
   }
