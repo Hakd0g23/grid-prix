@@ -6,14 +6,14 @@
 <title>Grid Prix — F1 Mind Games</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Chakra+Petch:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --red:#e10600; --red-dark:#a30500; --dark:#0c0c0e; --panel:#17181c;
     --panel2:#1f2126; --text:#f2f2f2; --muted:#9a9ba2; --green:#00d26a;
     --amber:#ffb400; --gridline:#33353b;
     --font-display:"Barlow Condensed",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    --font-mono:"Orbitron",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:"Chakra Petch",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;background:var(--dark);color:var(--text);
@@ -207,10 +207,13 @@ const LS_KEY = "gridprix_progress_v2";
 function loadProgress(){
   try{
     const p = JSON.parse(localStorage.getItem(LS_KEY));
-    if(p) return p;
+    if(p){
+      if(p.sudoku && p.sudoku.hints == null) p.sudoku.hints = 0;
+      return p;
+    }
   }catch(e){}
   return {
-    sudoku:{unlocked:1, times:{}},
+    sudoku:{unlocked:1, times:{}, hints:0},
     wordhunt:{unlocked:1, times:{}},
     crossword:{unlocked:1, times:{}}
   };
@@ -221,6 +224,7 @@ function completeLevel(gameId, level, seconds){
   const g = p[gameId];
   if(!g.times[level] || seconds < g.times[level]) g.times[level] = seconds;
   if(level >= g.unlocked && g.unlocked < MAX_LEVEL) g.unlocked = level + 1;
+  if(gameId === "sudoku") g.hints = (g.hints||0) + 1;
   saveProgress(p);
   return p;
 }
@@ -229,13 +233,36 @@ function fmtTime(s){
   return m+":"+String(sec).padStart(2,"0");
 }
 
+/* ============ Mid-game (in-progress) persistence ============
+   Lets a player leave mid-puzzle (back to levels/menu, or close the
+   tab) and pick up exactly where they left off on that same level. */
+const INPROGRESS_KEY = "gridprix_inprogress_v1";
+function loadAllInProgress(){
+  try{ return JSON.parse(localStorage.getItem(INPROGRESS_KEY)) || {}; }catch(e){ return {}; }
+}
+function saveInProgress(gameId, level, state){
+  const all = loadAllInProgress();
+  all[gameId] = { level, state };
+  localStorage.setItem(INPROGRESS_KEY, JSON.stringify(all));
+}
+function getInProgress(gameId, level){
+  const entry = loadAllInProgress()[gameId];
+  return (entry && entry.level === level) ? entry.state : null;
+}
+function clearInProgress(gameId){
+  const all = loadAllInProgress();
+  delete all[gameId];
+  localStorage.setItem(INPROGRESS_KEY, JSON.stringify(all));
+}
+
 /* ============ Timer helper ============ */
 function Timer(onTick){
   let t=0, id=null;
   return {
     start(){ id = setInterval(()=>{ t++; onTick(t); }, 1000); },
     stop(){ clearInterval(id); },
-    val(){ return t; }
+    val(){ return t; },
+    setVal(v){ t=v; onTick(t); }
   };
 }
 
@@ -401,22 +428,48 @@ function renderSudoku(level){
   shuffleRng(cellsIdx, rng).slice(0, removeCount).forEach(([r,c])=>{ puzzle[r][c] = 0; });
 
   const given = puzzle.map(row=>row.map(v=>v!==0));
-  const board = puzzle.map(row=>row.slice());
-  const notes = Array.from({length:N},()=>Array.from({length:N},()=>new Set()));
+  const saved = getInProgress("sudoku", level);
+  const board = saved ? saved.board : puzzle.map(row=>row.slice());
+  const notes = saved
+    ? saved.notes.map(row=>row.map(arr=>new Set(arr)))
+    : Array.from({length:N},()=>Array.from({length:N},()=>new Set()));
   let selected = null;
   let notesMode = false;
+  let mistakes = saved ? saved.mistakes : 0;
+  let gameOver = false;
+
+  const progressNow = loadProgress();
+  let hintsAvailable = progressNow.sudoku.hints || 0;
 
   const topbar = document.createElement("div");
   topbar.className = "topbar";
   const timeStat = document.createElement("div"); timeStat.className="stat"; timeStat.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>0:00</b>';
   const lvlStat = document.createElement("div"); lvlStat.className="stat"; lvlStat.innerHTML=`Level <b>${level}</b>/${MAX_LEVEL}`;
-  const controls = document.createElement("div"); controls.style.display="flex"; controls.style.gap="8px";
+  const mistakeStat = document.createElement("div"); mistakeStat.className="stat";
+  const controls = document.createElement("div"); controls.style.display="flex"; controls.style.gap="8px"; controls.style.flexWrap="wrap";
   const notesBtn = document.createElement("button"); notesBtn.className="btn small"; notesBtn.textContent="✎ Notes";
   notesBtn.onclick = ()=>{ notesMode = !notesMode; notesBtn.classList.toggle("primary", notesMode); };
+  const hintBtn = document.createElement("button"); hintBtn.className="btn small";
+  hintBtn.onclick = ()=>{
+    if(gameOver || hintsAvailable<=0 || !selected) return;
+    const [r,c] = selected;
+    if(given[r][c] || board[r][c]===solution[r][c]) return;
+    board[r][c] = solution[r][c];
+    notes[r][c].clear();
+    hintsAvailable--;
+    const pr = loadProgress(); pr.sudoku.hints = hintsAvailable; saveProgress(pr);
+    updateHintBtn();
+    saveState();
+    draw();
+    checkWin();
+  };
+  function updateHintBtn(){ hintBtn.textContent = `💡 Hint (${hintsAvailable})`; hintBtn.disabled = hintsAvailable<=0; }
+  updateHintBtn();
   const retryBtn = document.createElement("button"); retryBtn.className="btn small"; retryBtn.textContent="Retry";
-  retryBtn.onclick = ()=> renderSudoku(level);
-  controls.appendChild(backBtn(()=>renderLevelSelect("sudoku"), "← Levels")); controls.appendChild(notesBtn); controls.appendChild(retryBtn);
-  topbar.appendChild(timeStat); topbar.appendChild(lvlStat); topbar.appendChild(controls);
+  retryBtn.onclick = ()=>{ clearInProgress("sudoku"); renderSudoku(level); };
+  controls.appendChild(backBtn(()=>{ saveState(); renderLevelSelect("sudoku"); }, "← Levels"));
+  controls.appendChild(notesBtn); controls.appendChild(hintBtn); controls.appendChild(retryBtn);
+  topbar.appendChild(timeStat); topbar.appendChild(lvlStat); topbar.appendChild(mistakeStat); topbar.appendChild(controls);
 
   const gridEl = document.createElement("div");
   gridEl.id = "sudokuGrid";
@@ -432,8 +485,44 @@ function renderSudoku(level){
   wrap.appendChild(padEl);
   app.appendChild(wrap);
 
-  const timer = Timer((t)=>{ timeStat.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>${fmtTime(t)}</b>`; });
+  function updateMistakeStat(){ mistakeStat.innerHTML = `Mistakes <b>${mistakes}</b>/3`; }
+  updateMistakeStat();
+
+  function saveState(){
+    saveInProgress("sudoku", level, {
+      board: board.map(row=>row.slice()),
+      notes: notes.map(row=>row.map(s=>[...s])),
+      mistakes,
+      elapsed: timer.val()
+    });
+  }
+
+  const timer = Timer((t)=>{ timeStat.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>${fmtTime(t)}</b>`;
+    if(t % 5 === 0) saveState();
+  });
   timer.start();
+  if(saved && saved.elapsed) timer.setVal(saved.elapsed);
+
+  function loseModal(){
+    gameOver = true;
+    timer.stop();
+    clearInProgress("sudoku");
+    const bg = document.createElement("div");
+    bg.className = "modal-bg";
+    bg.innerHTML = `<div class="modal">
+      <h2>🏁 Crashed Out</h2>
+      <p>3 mistakes — this attempt is over.<br>Level ${level} resets fresh.</p>
+      <div class="modalbtns">
+        <button class="btn primary" id="loseRetryBtn">Retry Level</button>
+        <button class="btn" id="loseLevelsBtn">Level Select</button>
+        <button class="btn" id="losePaddockBtn">Back to Paddock</button>
+      </div>
+    </div>`;
+    document.body.appendChild(bg);
+    bg.querySelector("#loseRetryBtn").onclick = ()=>{ bg.remove(); renderSudoku(level); };
+    bg.querySelector("#loseLevelsBtn").onclick = ()=>{ bg.remove(); renderLevelSelect("sudoku"); };
+    bg.querySelector("#losePaddockBtn").onclick = ()=>{ bg.remove(); renderMenu(); };
+  }
 
   function conflicts(r,c,val){
     if(!val) return false;
@@ -476,7 +565,7 @@ function renderSudoku(level){
           cell.appendChild(ng);
         }
         cell.onclick = ()=>{
-          if(given[r][c]) return;
+          if(gameOver || given[r][c]) return;
           selected = [r,c];
           draw();
         };
@@ -489,7 +578,7 @@ function renderSudoku(level){
     const b = document.createElement("button");
     b.textContent = n;
     b.onclick = ()=>{
-      if(!selected) return;
+      if(gameOver || !selected) return;
       const [r,c] = selected;
       if(given[r][c]) return;
       if(notesMode){
@@ -497,11 +586,19 @@ function renderSudoku(level){
         const s = notes[r][c];
         s.has(n) ? s.delete(n) : s.add(n);
         draw();
+        saveState();
         return;
       }
+      const wasCorrectAlready = board[r][c] === solution[r][c];
       board[r][c] = n;
       notes[r][c].clear();
+      if(n !== solution[r][c] && !wasCorrectAlready){
+        mistakes++;
+        updateMistakeStat();
+        if(mistakes >= 3){ draw(); saveState(); loseModal(); return; }
+      }
       draw();
+      saveState();
       checkWin();
     };
     padEl.appendChild(b);
@@ -509,12 +606,13 @@ function renderSudoku(level){
   const eraseBtn = document.createElement("button");
   eraseBtn.textContent = "⌫";
   eraseBtn.onclick = ()=>{
-    if(!selected) return;
+    if(gameOver || !selected) return;
     const [r,c] = selected;
     if(given[r][c]) return;
     if(board[r][c]) board[r][c] = 0;
     else notes[r][c].clear();
     draw();
+    saveState();
   };
   padEl.appendChild(eraseBtn);
 
@@ -523,6 +621,7 @@ function renderSudoku(level){
       if(board[r][c]===0 || board[r][c]!==solution[r][c]) return;
     }
     timer.stop();
+    clearInProgress("sudoku");
     msg.textContent = "Perfect lap! Grid complete.";
     setTimeout(()=> winModal("sudoku", level, timer.val(), "Flawless sudoku — no errors on track. "), 300);
   }
@@ -726,16 +825,19 @@ function renderWordHunt(level){
         if(grid[r][c] !== "" && grid[r][c] !== word[i]){ ok=false; break; }
       }
       if(!ok) continue;
+      const path = [];
       for(let i=0;i<word.length;i++){
         const r=r0+dir[0]*i, c=c0+dir[1]*i;
         grid[r][c] = word[i];
+        path.push([r,c]);
       }
-      return true;
+      return path;
     }
-    return false;
+    return null;
   }
   const placedWords = [];
-  WORDS.forEach(w=>{ if(tryPlace(w)) placedWords.push(w); });
+  const placements = {};
+  WORDS.forEach(w=>{ const path = tryPlace(w); if(path){ placedWords.push(w); placements[w] = path; } });
   const ALPH = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++) if(grid[r][c]==="") grid[r][c] = ALPH[Math.floor(rng()*26)];
 
@@ -748,8 +850,8 @@ function renderWordHunt(level){
   const lvlStat = document.createElement("div"); lvlStat.className="stat"; lvlStat.innerHTML=`Level <b>${level}</b>/${MAX_LEVEL}`;
   const controls = document.createElement("div"); controls.style.display="flex"; controls.style.gap="8px";
   const retryBtn = document.createElement("button"); retryBtn.className="btn small"; retryBtn.textContent="Retry";
-  retryBtn.onclick = ()=> renderWordHunt(level);
-  controls.appendChild(backBtn(()=>renderLevelSelect("wordhunt"), "← Levels")); controls.appendChild(retryBtn);
+  retryBtn.onclick = ()=>{ clearInProgress("wordhunt"); renderWordHunt(level); };
+  controls.appendChild(backBtn(()=>{ saveWHState(); renderLevelSelect("wordhunt"); }, "← Levels")); controls.appendChild(retryBtn);
   topbar.appendChild(timeStat); topbar.appendChild(lvlStat); topbar.appendChild(controls);
 
   const gridWrap = document.createElement("div");
@@ -781,13 +883,19 @@ function renderWordHunt(level){
   wrap.appendChild(msg);
   app.appendChild(wrap);
 
-  const timer = Timer((t)=>{ timeStat.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>${fmtTime(t)}</b>`; });
-  timer.start();
+  const timer = Timer((t)=>{
+    timeStat.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>${fmtTime(t)}</b>`;
+    if(t % 5 === 0) saveWHState();
+  });
 
   let dragging = false;
   let path = [];
   const cellEls = [];
   const foundPaths = []; // {path, color}
+
+  function saveWHState(){
+    saveInProgress("wordhunt", level, { found: [...found], elapsed: timer.val() });
+  }
 
   function drawGrid(){
     gridEl.innerHTML = "";
@@ -799,13 +907,24 @@ function renderWordHunt(level){
         el.textContent = grid[r][c];
         el.dataset.r = r; el.dataset.c = c;
         el.addEventListener("pointerdown", (e)=>{ dragging=true; path=[[r,c]]; redrawOverlay(); e.preventDefault(); });
-        el.addEventListener("pointerenter", ()=>{ if(dragging){ extendPath(r,c); } });
         gridEl.appendChild(el);
         cellEls[r][c] = el;
       }
     }
   }
   drawGrid();
+
+  // Touch pointers implicitly capture to the element that received pointerdown,
+  // so per-cell pointerenter never fires while dragging a finger across the grid.
+  // Track pointer position globally instead and hit-test with elementFromPoint —
+  // works for both mouse and touch.
+  window.addEventListener("pointermove", (e)=>{
+    if(!dragging) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if(el && el.classList && el.classList.contains("wc")){
+      extendPath(+el.dataset.r, +el.dataset.c);
+    }
+  });
 
   function cellCenter(r,c){
     const wrapRect = gridWrap.getBoundingClientRect();
@@ -849,6 +968,15 @@ function renderWordHunt(level){
     redrawOverlay();
   }
 
+  function commitFound(word, wordPath){
+    found.add(word);
+    const color = WH_COLORS[foundPaths.length % WH_COLORS.length];
+    foundPaths.push({ path: wordPath, color });
+    wordPath.forEach(([r,c])=> cellEls[r][c].classList.add("found"));
+    const chip = wordsEl.querySelector(`[data-word="${word}"]`);
+    if(chip){ chip.classList.add("done"); chip.style.background = color; chip.style.borderColor = color; chip.style.color = "#04240f"; }
+  }
+
   function endDrag(){
     if(!dragging) return;
     dragging = false;
@@ -859,15 +987,12 @@ function renderWordHunt(level){
       if((str===w || rev===w) && !found.has(w)){ matchWord = w; break; }
     }
     if(matchWord){
-      found.add(matchWord);
-      const color = WH_COLORS[foundPaths.length % WH_COLORS.length];
-      foundPaths.push({ path, color });
-      path.forEach(([r,c])=> cellEls[r][c].classList.add("found"));
-      const chip = wordsEl.querySelector(`[data-word="${matchWord}"]`);
-      if(chip){ chip.classList.add("done"); chip.style.background = color; chip.style.borderColor = color; chip.style.color = "#04240f"; }
+      commitFound(matchWord, path);
       msg.className = ""; msg.textContent = matchWord + " found!";
+      saveWHState();
       if(found.size === placedWords.length){
         timer.stop();
+        clearInProgress("wordhunt");
         setTimeout(()=> winModal("wordhunt", level, timer.val(), "All F1 terms located. "), 300);
       }
     }
@@ -876,6 +1001,14 @@ function renderWordHunt(level){
   }
   window.addEventListener("pointerup", endDrag);
   window.addEventListener("resize", redrawOverlay);
+
+  const savedWH = getInProgress("wordhunt", level);
+  if(savedWH && savedWH.found){
+    savedWH.found.forEach(w=>{ if(placements[w] && !found.has(w)) commitFound(w, placements[w]); });
+    redrawOverlay();
+  }
+  timer.start();
+  if(savedWH && savedWH.elapsed) timer.setVal(savedWH.elapsed);
 }
 
 /* =========================================================
@@ -1005,7 +1138,10 @@ function renderCrossword(level){
   const lvlStat = document.createElement("div"); lvlStat.className="stat"; lvlStat.innerHTML=`Level <b>${level}</b>/${MAX_LEVEL}`;
   const controls = document.createElement("div"); controls.style.display="flex"; controls.style.gap="8px";
   const checkBtn = document.createElement("button"); checkBtn.className="btn small"; checkBtn.textContent="Check";
-  controls.appendChild(backBtn(()=>renderLevelSelect("crossword"), "← Levels")); controls.appendChild(checkBtn);
+  const retryBtn = document.createElement("button"); retryBtn.className="btn small"; retryBtn.textContent="Retry";
+  retryBtn.onclick = ()=>{ clearInProgress("crossword"); renderCrossword(level); };
+  controls.appendChild(backBtn(()=>{ saveCWState(); renderLevelSelect("crossword"); }, "← Levels"));
+  controls.appendChild(checkBtn); controls.appendChild(retryBtn);
   topbar.appendChild(timeStat); topbar.appendChild(lvlStat); topbar.appendChild(controls);
 
   const clueBar = document.createElement("div");
@@ -1028,8 +1164,10 @@ function renderCrossword(level){
   wrap.appendChild(clueList);
   app.appendChild(wrap);
 
-  const timer = Timer((t)=>{ timeStat.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>${fmtTime(t)}</b>`; });
-  timer.start();
+  const timer = Timer((t)=>{
+    timeStat.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true"><path fill="currentColor" d="M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"/></svg><b>${fmtTime(t)}</b>`;
+    if(t % 5 === 0) saveCWState();
+  });
 
   const cellData = {};
   entries.forEach(e=>{
@@ -1099,7 +1237,16 @@ function renderCrossword(level){
     const nc = activeEntry.dir==="A" ? activeEntry.col+idx+1 : c;
     const k = keyRC(nr,nc);
     if(cellData[k]) cellData[k].inputEl.focus();
+    saveCWState();
     checkComplete();
+  }
+
+  function saveCWState(){
+    const values = {};
+    Object.keys(cellData).forEach(k=>{
+      if(cellData[k].inputEl.value) values[k] = cellData[k].inputEl.value;
+    });
+    saveInProgress("crossword", level, { values, elapsed: timer.val() });
   }
   function moveBack(r,c){
     if(!activeEntry) return;
@@ -1160,6 +1307,7 @@ function renderCrossword(level){
     if(allFilled){
       if(allCorrect){
         timer.stop();
+        clearInProgress("crossword");
         setTimeout(()=> winModal("crossword", level, timer.val(), "Every answer correct. "), 300);
       } else {
         msg.className = "err";
@@ -1186,10 +1334,21 @@ function renderCrossword(level){
 
   drawGrid();
   drawClueList();
+
+  const savedCW = getInProgress("crossword", level);
+  if(savedCW && savedCW.values){
+    Object.keys(savedCW.values).forEach(k=>{
+      if(cellData[k]) cellData[k].inputEl.value = savedCW.values[k];
+    });
+  }
+
   activeEntry = entries[0];
   const firstKey = keyRC(entries[0].row, entries[0].col);
   cellData[firstKey].inputEl.focus();
   setActive(entries[0].row, entries[0].col);
+
+  timer.start();
+  if(savedCW && savedCW.elapsed) timer.setVal(savedCW.elapsed);
 }
 
 /* ============ Decorative race lane: 22 generic cars, one grid's worth ============
