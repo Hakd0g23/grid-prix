@@ -200,21 +200,29 @@
   .achGoalProgress{font-size:.72rem; color:var(--text); margin-top:6px; font-family:var(--font-mono); opacity:.85;}
   .achProgress{font-size:.8rem; color:var(--muted); text-align:center; line-height:1.6;}
 
-  /* ---- Leaderboard starting grid ---- */
-  #leaderboardGrid{display:flex; flex-direction:column; gap:10px; max-width:640px; width:100%; margin:0 auto;}
-  .gridRow{display:flex; gap:14px;}
-  .gridSlot{flex:1; min-width:0; background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--gridline);
-    border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:10px;}
-  .gridSlot.slotOffset{margin-top:20px;}
-  .gridSlot.you{border-color:var(--red); box-shadow:0 0 0 1px var(--red);}
-  .gridSlot .pos{font-family:var(--font-mono); font-weight:800; font-size:1.05rem; color:var(--red); width:26px; flex-shrink:0; text-align:center;}
-  .gridSlot .slotCar{width:38px; height:18px; flex-shrink:0;}
-  .gridSlot .slotCar svg{width:100%; height:100%; transform:scaleX(-1);}
-  .gridSlot .slotInfo{flex:1; min-width:0;}
-  .gridSlot .slotName{font-weight:700; font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .gridSlot .slotTime{font-family:var(--font-mono); font-size:.75rem; color:var(--muted);}
-  .gridSlot.empty{opacity:.4; justify-content:center; font-size:.8rem; color:var(--muted);}
-  .lbForm{max-width:640px; width:100%; margin:22px auto 0; background:var(--panel2); border:1px solid var(--gridline);
+  /* ---- Leaderboard: top-down starting grid ---- */
+  .lbTabs{display:flex; gap:8px; justify-content:center; margin:10px 0 18px; flex-wrap:wrap;}
+  .lbTabs button.active{background:var(--red); border-color:var(--red-dark);}
+  .trackWrap{max-width:460px; width:100%; margin:0 auto; border-radius:14px; overflow:hidden; border:1px solid var(--gridline);}
+  .startLine{height:16px; background-image:
+      linear-gradient(45deg,#111 25%, transparent 25%, transparent 75%, #111 75%),
+      linear-gradient(45deg,#111 25%, transparent 25%, transparent 75%, #111 75%);
+    background-size:16px 16px; background-position:0 0,8px 8px; background-color:#fff;}
+  .trackBody{position:relative; padding:20px 22px 4px;
+    background:repeating-linear-gradient(180deg, transparent 0 38px, rgba(255,255,255,.06) 38px 40px), linear-gradient(180deg,#242424,#1a1a1a);}
+  .trackBody::before{content:""; position:absolute; left:50%; top:0; bottom:0; border-left:3px dashed rgba(255,255,255,.22); transform:translateX(-50%);}
+  .gridBoxRow{display:flex; gap:16px; position:relative; z-index:1;}
+  .gridBox{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; padding:8px 4px 10px;
+    border:2px solid rgba(255,255,255,.32); border-radius:4px; margin-bottom:12px; background:rgba(255,255,255,.02);}
+  .gridBox.offset{margin-top:24px;}
+  .gridBox.you{border-color:var(--red); box-shadow:0 0 0 1px var(--red);}
+  .gridBox.empty{opacity:.32;}
+  .gridBox .slotCarTD{width:30px; height:50px; margin-bottom:4px;}
+  .gridBox .slotCarTD svg{width:100%; height:100%;}
+  .gridBox .pos{font-family:var(--font-mono); font-weight:800; font-size:.72rem; color:#fff; letter-spacing:.5px;}
+  .gridBox .slotName{font-weight:700; font-size:.74rem; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; color:#fff;}
+  .gridBox .slotTime{font-family:var(--font-mono); font-size:.66rem; color:#bbb;}
+  .lbForm{max-width:460px; width:100%; margin:22px auto 0; background:var(--panel2); border:1px solid var(--gridline);
     border-radius:12px; padding:16px;}
   .lbForm h3{margin:0 0 10px; font-family:var(--font-display); font-size:1.05rem;}
   .lbForm input[type=text]{width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--gridline);
@@ -222,6 +230,12 @@
   .colorSwatches{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
   .swatch{width:34px; height:34px; border-radius:50%; border:3px solid transparent; cursor:pointer; padding:0;}
   .swatch.selected{border-color:var(--text);}
+  .lbLabel{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin:2px 0 6px;}
+  .helmetSwatch{width:36px; height:36px; border-radius:8px; border:2px solid transparent; cursor:pointer; padding:2px; background:var(--dark);}
+  .helmetSwatch svg{width:100%; height:100%;}
+  .helmetSwatch.selected{border-color:var(--text);}
+  .gridBox .slotHelmet{width:20px; height:20px; margin-bottom:2px;}
+  .gridBox .slotHelmet svg{width:100%; height:100%;}
   .lbNote{font-size:.75rem; color:var(--muted); margin-top:8px; line-height:1.5;}
 </style>
 </head>
@@ -261,13 +275,18 @@
     const app = initializeApp(firebaseConfig);
     db = getFirestore(app);
   }
+  const GAME_IDS = ["sudoku", "wordhunt", "crossword"];
+  function collFor(gameId){
+    if(!GAME_IDS.includes(gameId)) throw new Error("unknown game " + gameId);
+    return "leaderboard_" + gameId;
+  }
   window.gridPrixLeaderboard = {
     configured,
-    async submit(clientId, name, time, carColor){
-      await setDoc(doc(db, "leaderboard", clientId), { name, time, carColor, updatedAt: Date.now() });
+    async submit(gameId, clientId, name, completed, carColor, helmet){
+      await setDoc(doc(db, collFor(gameId), clientId), { name, completed, carColor, helmet, updatedAt: Date.now() });
     },
-    async fetchTop20(){
-      const q = query(collection(db, "leaderboard"), orderBy("time", "asc"), limit(20));
+    async fetchTop20(gameId){
+      const q = query(collection(db, collFor(gameId)), orderBy("completed", "desc"), limit(20));
       const snap = await getDocs(q);
       return snap.docs.map(d=> ({ id: d.id, ...d.data() }));
     }
@@ -569,16 +588,51 @@ const LB_KEY = "gridprix_leaderboard_id_v1";
 function loadLbIdentity(){
   try{
     const raw = localStorage.getItem(LB_KEY);
-    if(raw) return JSON.parse(raw);
+    if(raw){ const p = JSON.parse(raw); if(p.helmet==null) p.helmet = 0; return p; }
   } catch(e){}
-  const fresh = { clientId: "gp_" + Math.random().toString(36).slice(2) + Date.now().toString(36), name: "", carColor: RACE_ACCENT_COLORS[0] };
+  const fresh = { clientId: "gp_" + Math.random().toString(36).slice(2) + Date.now().toString(36), name: "", carColor: RACE_ACCENT_COLORS[0], helmet: 0 };
   localStorage.setItem(LB_KEY, JSON.stringify(fresh));
   return fresh;
 }
 function saveLbIdentity(idn){ localStorage.setItem(LB_KEY, JSON.stringify(idn)); }
 
+const HELMET_DECOS = [
+  "",
+  `<rect x="4" y="14" width="24" height="6" fill="#fff"/>`,
+  `<path d="M16 4l2.5 5.2 5.7.5-4.3 3.8 1.3 5.6L16 16l-5.2 3.1 1.3-5.6-4.3-3.8 5.7-.5z" fill="#ffd54a"/>`,
+  `<rect x="1" y="9" width="6" height="26" fill="#fff" transform="rotate(-40 16 16)"/>`,
+  `<circle cx="10" cy="10" r="2" fill="#fff"/><circle cx="18" cy="8" r="2" fill="#fff"/><circle cx="22" cy="14" r="2" fill="#fff"/>`,
+  `<path d="M4,15 L14,7 L24,15 L14,11 Z" fill="#fff"/>`
+];
+let __helmetClipSeq = 0;
+function helmetSVG(design, color){
+  const deco = HELMET_DECOS[design] || "";
+  const clipId = "helmetClip" + (__helmetClipSeq++);
+  const domePath = "M16 3c7.2 0 12 5.4 12 12.5 0 1.5-.2 2.8-.6 4H4.6c-.4-1.2-.6-2.5-.6-4C4 8.4 8.8 3 16 3z";
+  return `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="overflow:hidden">
+    <clipPath id="${clipId}"><path d="${domePath}"/></clipPath>
+    <path d="${domePath}" fill="${color}"/>
+    <g clip-path="url(#${clipId})">${deco}</g>
+    <rect x="3" y="17" width="26" height="7" rx="3" fill="#0c0c0e"/>
+  </svg>`;
+}
+function topDownCarSVG(){
+  // Viewed from above, nose pointing up the track toward the start line.
+  return `<svg viewBox="0 0 60 100" xmlns="http://www.w3.org/2000/svg">
+    <rect x="24" y="6" width="12" height="18" rx="4" fill="currentColor"/>
+    <rect x="18" y="22" width="24" height="50" rx="6" fill="currentColor"/>
+    <rect x="22" y="74" width="16" height="16" rx="3" fill="currentColor"/>
+    <rect x="6" y="30" width="8" height="14" rx="2" fill="#0c0c0e"/>
+    <rect x="46" y="30" width="8" height="14" rx="2" fill="#0c0c0e"/>
+    <rect x="6" y="64" width="8" height="14" rx="2" fill="#0c0c0e"/>
+    <rect x="46" y="64" width="8" height="14" rx="2" fill="#0c0c0e"/>
+    <ellipse cx="30" cy="40" rx="7" ry="9" fill="#0c0c0e" opacity=".6"/>
+    <rect x="14" y="90" width="32" height="5" rx="1" fill="currentColor" opacity=".85"/>
+  </svg>`;
+}
+let lbActiveGame = "sudoku";
 function renderLeaderboard(){
-  tagline.textContent = "Top 20 — starting grid ranked by fastest qualifying lap";
+  tagline.textContent = "Top 20 — starting grid ranked by levels completed";
   app.innerHTML = "";
   const wrap = document.createElement("div");
   wrap.className = "gamewrap";
@@ -593,54 +647,86 @@ function renderLeaderboard(){
   title.textContent = "🏁 Starting Grid";
   wrap.appendChild(title);
 
-  const gridEl = document.createElement("div");
-  gridEl.id = "leaderboardGrid";
-  wrap.appendChild(gridEl);
+  const tabs = document.createElement("div");
+  tabs.className = "lbTabs";
+  Object.keys(GAME_META).forEach(id=>{
+    const b = document.createElement("button");
+    b.className = "btn" + (id===lbActiveGame ? " active" : "");
+    b.textContent = GAME_META[id].short;
+    b.onclick = ()=>{ lbActiveGame = id; renderLeaderboard(); };
+    tabs.appendChild(b);
+  });
+  wrap.appendChild(tabs);
+
+  const trackWrap = document.createElement("div");
+  trackWrap.className = "trackWrap";
+  trackWrap.innerHTML = `<div class="startLine"></div><div class="trackBody" id="trackBody"></div>`;
+  wrap.appendChild(trackWrap);
+  const trackBody = trackWrap.querySelector("#trackBody");
 
   const idn = loadLbIdentity();
   const backend = window.gridPrixLeaderboard;
+  const gameId = lbActiveGame;
 
-  function slotHTML(pos, entry, offset){
-    if(!entry) return `<div class="gridSlot empty ${offset?"slotOffset":""}">P${pos}</div>`;
+  function boxHTML(pos, entry, offset){
+    if(!entry) return `<div class="gridBox empty ${offset?"offset":""}"><div class="pos">P${pos}</div></div>`;
     const isYou = entry.id === idn.clientId;
-    return `<div class="gridSlot ${offset?"slotOffset":""} ${isYou?"you":""}">
+    return `<div class="gridBox ${offset?"offset":""} ${isYou?"you":""}">
       <div class="pos">P${pos}</div>
-      <div class="slotCar" style="color:${entry.carColor||"#999"}">${carSVG()}</div>
-      <div class="slotInfo">
-        <div class="slotName">${escapeHtml(entry.name||"—")}${isYou?" (you)":""}</div>
-        <div class="slotTime">${fmtTime(entry.time)}</div>
-      </div>
+      <div class="slotHelmet">${helmetSVG(entry.helmet||0, entry.carColor||"#999")}</div>
+      <div class="slotCarTD" style="color:${entry.carColor||"#999"}">${topDownCarSVG()}</div>
+      <div class="slotName">${escapeHtml(entry.name||"—")}${isYou?" (you)":""}</div>
+      <div class="slotTime">${entry.completed||0}/${MAX_LEVEL}</div>
     </div>`;
   }
 
   function renderRows(entries){
-    gridEl.innerHTML = "";
+    trackBody.innerHTML = "";
     for(let i=0;i<10;i++){
       const left = entries[i*2], right = entries[i*2+1];
       const row = document.createElement("div");
-      row.className = "gridRow";
-      row.innerHTML = slotHTML(i*2+1, left, false) + slotHTML(i*2+2, right, true);
-      gridEl.appendChild(row);
+      row.className = "gridBoxRow";
+      row.innerHTML = boxHTML(i*2+1, left, false) + boxHTML(i*2+2, right, true);
+      trackBody.appendChild(row);
     }
   }
 
   const form = document.createElement("div");
   form.className = "lbForm";
-  const myBest = fastestTime(loadProgress());
+  const myCompleted = Object.keys(loadProgress()[gameId].times).length;
   const swatches = RACE_ACCENT_COLORS.map(c=> `<button type="button" class="swatch${c===idn.carColor?" selected":""}" data-color="${c}" style="background:${c}"></button>`).join("");
-  form.innerHTML = `<h3>Submit / Update Your Time</h3>
+  const helmetBtns = HELMET_DECOS.map((_,i)=> `<button type="button" class="helmetSwatch${i===idn.helmet?" selected":""}" data-helmet="${i}">${helmetSVG(i, idn.carColor)}</button>`).join("");
+  form.innerHTML = `<h3>Submit / Update Your ${GAME_META[gameId].short} Progress</h3>
     <input type="text" id="lbName" maxlength="20" placeholder="Driver name" value="${escapeHtml(idn.name)}">
+    <div class="lbLabel">Car color</div>
     <div class="colorSwatches">${swatches}</div>
-    <button class="btn primary" id="lbSubmitBtn">🏁 Submit Best Time (${isFinite(myBest) ? fmtTime(myBest) : "no time yet"})</button>
+    <div class="lbLabel">Helmet</div>
+    <div class="colorSwatches" id="helmetRow">${helmetBtns}</div>
+    <button class="btn primary" id="lbSubmitBtn">🏁 Submit Progress (${myCompleted}/${MAX_LEVEL} completed)</button>
     <div class="lbNote" id="lbNote"></div>`;
   wrap.appendChild(form);
   app.appendChild(wrap);
 
   let selectedColor = idn.carColor;
+  let selectedHelmet = idn.helmet;
+  function refreshHelmetPreviews(){
+    form.querySelectorAll(".helmetSwatch").forEach(btn=>{
+      const i = Number(btn.dataset.helmet);
+      btn.innerHTML = helmetSVG(i, selectedColor);
+      btn.classList.toggle("selected", i===selectedHelmet);
+    });
+  }
   form.querySelectorAll(".swatch").forEach(sw=>{
     sw.onclick = ()=>{
       selectedColor = sw.dataset.color;
       form.querySelectorAll(".swatch").forEach(s=> s.classList.toggle("selected", s===sw));
+      refreshHelmetPreviews();
+    };
+  });
+  form.querySelectorAll(".helmetSwatch").forEach(btn=>{
+    btn.onclick = ()=>{
+      selectedHelmet = Number(btn.dataset.helmet);
+      refreshHelmetPreviews();
     };
   });
 
@@ -657,16 +743,16 @@ function renderLeaderboard(){
   submitBtn.onclick = async ()=>{
     const name = form.querySelector("#lbName").value.trim();
     if(!name){ noteEl.textContent = "Enter a name first."; return; }
-    if(!isFinite(myBest)){ noteEl.textContent = "Complete a puzzle first to set a qualifying time."; return; }
-    idn.name = name; idn.carColor = selectedColor;
+    if(myCompleted<=0){ noteEl.textContent = `Complete a ${GAME_META[gameId].short} level first to join the grid.`; return; }
+    idn.name = name; idn.carColor = selectedColor; idn.helmet = selectedHelmet;
     saveLbIdentity(idn);
     submitBtn.disabled = true;
     noteEl.textContent = "Submitting...";
     try{
-      await backend.submit(idn.clientId, name, myBest, selectedColor);
+      await backend.submit(gameId, idn.clientId, name, myCompleted, selectedColor, selectedHelmet);
       noteEl.textContent = "Submitted! Refreshing grid...";
       await load();
-      noteEl.textContent = "Your time is live on the grid.";
+      noteEl.textContent = "Your progress is live on the grid.";
     } catch(e){
       noteEl.textContent = "Couldn't submit — check your connection and try again.";
     }
@@ -674,12 +760,12 @@ function renderLeaderboard(){
   };
 
   async function load(){
-    gridEl.innerHTML = `<div class="achProgress">Loading grid...</div>`;
+    trackBody.innerHTML = `<div class="achProgress">Loading grid...</div>`;
     try{
-      const entries = await backend.fetchTop20();
+      const entries = await backend.fetchTop20(gameId);
       renderRows(entries);
     } catch(e){
-      gridEl.innerHTML = `<div class="achProgress">Couldn't load the leaderboard. Check your connection.</div>`;
+      trackBody.innerHTML = `<div class="achProgress">Couldn't load the leaderboard. Check your connection.</div>`;
     }
   }
   load();
