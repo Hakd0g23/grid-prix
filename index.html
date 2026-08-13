@@ -192,6 +192,11 @@
 
   /* ---- Achievements screen ---- */
   #achGrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; width:100%; max-width:900px;}
+  .themeGrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; max-width:760px; width:100%; margin:0 auto;}
+  .themeCard{background:var(--panel2); border:2px solid var(--gridline); border-radius:12px; padding:12px; cursor:pointer; text-align:left; font-family:inherit;}
+  .themeCard.active{border-color:var(--text);}
+  .themeSwatch{width:100%; height:44px; border-radius:8px; margin-bottom:8px;}
+  .themeLabel{color:var(--text); font-size:.82rem; font-weight:700;}
   .achCard{background:var(--panel2); border:1px solid var(--gridline); border-radius:12px; padding:14px; display:flex; gap:12px; align-items:flex-start;}
   .achCard.locked{opacity:.65;}
   .achTier{font-size:.62rem; text-transform:uppercase; letter-spacing:1px; font-weight:700;}
@@ -294,6 +299,31 @@
 "use strict";
 
 const MAX_LEVEL = 100;
+
+/* ============ Theme (accent colorway) ============
+   Witty color-inspired names, not real team names/logos — same posture as
+   the car livery colors elsewhere in the game. */
+const THEMES = [
+  { id:"classic",   label:"Podium Classic",     accent:"#e10600", accentDark:"#a30500" },
+  { id:"papaya",     label:"Papaya Blaze",       accent:"#FF8000", accentDark:"#cc6600" },
+  { id:"scarlet",    label:"Prancing Scarlet",   accent:"#E80020", accentDark:"#b10019" },
+  { id:"bullrush",   label:"Bull Rush Blue",     accent:"#3671C6", accentDark:"#1e4f9e" },
+  { id:"falcon",     label:"Silver Falcon Teal", accent:"#00A19C", accentDark:"#007a76" },
+  { id:"emerald",    label:"Emerald Knights",    accent:"#1E7A5F", accentDark:"#0f4a38" },
+  { id:"tricolore",  label:"Tricolore Blue",     accent:"#2293D1", accentDark:"#14648f" },
+  { id:"grove",      label:"Grove Racing Blue",  accent:"#3DA5E0", accentDark:"#1f6fa0" },
+  { id:"juniorbulls",label:"Junior Bulls Navy",  accent:"#4C6FFF", accentDark:"#2c46b8" },
+  { id:"starstripes",label:"Stars & Stripes Red",accent:"#C8102E", accentDark:"#96001f" },
+  { id:"hornet",     label:"Swiss Hornet Green", accent:"#3AA655", accentDark:"#1f7a3b" }
+];
+const THEME_KEY = "gridprix_theme_v1";
+function applyTheme(id){
+  const t = THEMES.find(x=>x.id===id) || THEMES[0];
+  document.documentElement.style.setProperty("--red", t.accent);
+  document.documentElement.style.setProperty("--red-dark", t.accentDark);
+  localStorage.setItem(THEME_KEY, t.id);
+}
+applyTheme(localStorage.getItem(THEME_KEY) || "classic");
 
 /* ============ Seeded RNG ============ */
 function mulberry32(seed){
@@ -576,7 +606,11 @@ function renderMenu(){
   lbBtn.className = "btn";
   lbBtn.textContent = "🏁 Leaderboard";
   lbBtn.onclick = renderLeaderboard;
-  btnRow.appendChild(achBtn); btnRow.appendChild(lbBtn);
+  const themeBtn = document.createElement("button");
+  themeBtn.className = "btn";
+  themeBtn.textContent = "🎨 Team Colors";
+  themeBtn.onclick = renderThemePicker;
+  btnRow.appendChild(achBtn); btnRow.appendChild(lbBtn); btnRow.appendChild(themeBtn);
   app.appendChild(btnRow);
 }
 
@@ -797,6 +831,42 @@ function renderLeaderboard(){
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, ch=> ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch])); }
 
+function renderThemePicker(){
+  tagline.textContent = "Pick the colorway that races across every screen";
+  app.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "gamewrap";
+
+  const topbar = document.createElement("div");
+  topbar.className = "topbar";
+  topbar.appendChild(backBtn());
+  wrap.appendChild(topbar);
+
+  const title = document.createElement("h2");
+  title.style.textAlign = "center"; title.style.fontFamily = "var(--font-display)";
+  title.textContent = "🎨 Team Colors";
+  wrap.appendChild(title);
+
+  const grid = document.createElement("div");
+  grid.className = "themeGrid";
+  wrap.appendChild(grid);
+  app.appendChild(wrap);
+
+  const current = localStorage.getItem(THEME_KEY) || "classic";
+  function draw(){
+    grid.innerHTML = "";
+    THEMES.forEach(t=>{
+      const active = t.id === (localStorage.getItem(THEME_KEY) || "classic");
+      const card = document.createElement("button");
+      card.className = "themeCard" + (active ? " active" : "");
+      card.innerHTML = `<div class="themeSwatch" style="background:linear-gradient(135deg,${t.accent},${t.accentDark})"></div>
+        <div class="themeLabel">${t.label}${active ? " ✓" : ""}</div>`;
+      card.onclick = ()=>{ applyTheme(t.id); draw(); };
+      grid.appendChild(card);
+    });
+  }
+  draw();
+}
 function renderAchievements(){
   tagline.textContent = "Every milestone you've unlocked on track";
   app.innerHTML = "";
