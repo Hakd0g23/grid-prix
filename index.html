@@ -147,6 +147,16 @@
   #muteToggle{position:fixed; top:10px; right:10px; z-index:40; width:38px; height:38px; border-radius:50%;
     background:var(--panel2); border:1px solid var(--gridline); color:var(--text); font-size:1.1rem;
     cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  #profileBadge{position:fixed; top:10px; left:10px; z-index:40; display:flex; align-items:center; gap:8px;
+    background:var(--panel2); border:1px solid var(--gridline); border-radius:22px; padding:4px 12px 4px 4px;
+    cursor:pointer; max-width:calc(100vw - 60px);}
+  #profileBadge img{width:32px; height:32px; border-radius:50%; background:var(--dark); flex-shrink:0;}
+  #profileBadge .profileText{font-size:.78rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .avatarGrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(56px,1fr)); gap:8px; max-height:260px; overflow-y:auto; margin:12px 0;}
+  .avatarChoice{width:56px; height:56px; border-radius:50%; border:3px solid transparent; background:var(--dark);
+    cursor:pointer; padding:4px;}
+  .avatarChoice img{width:100%; height:100%;}
+  .avatarChoice.selected{border-color:var(--red);}
   .raceLane{position:fixed; left:0; right:0; bottom:0; height:40px; overflow:hidden; pointer-events:none; z-index:0;}
   .raceLane::before{content:""; position:absolute; inset:0; top:2px;
     background:repeating-linear-gradient(90deg,var(--gridline) 0 22px,transparent 22px 44px);
@@ -550,6 +560,73 @@ function sfxFound(){ if(!sfxEnabled) return; try{ tone(660,0,0.08,"triangle",0.1
 function sfxWin(){ if(!sfxEnabled) return; try{ [523,659,784,1047].forEach((f,i)=> tone(f,i*0.09,0.18,"triangle",0.12)); }catch(e){} }
 function sfxLose(){ if(!sfxEnabled) return; try{ [400,320,240].forEach((f,i)=> tone(f,i*0.12,0.22,"sawtooth",0.1)); }catch(e){} }
 function sfxAchievement(){ if(!sfxEnabled) return; try{ [784,988,1175,1568].forEach((f,i)=> tone(f,i*0.06,0.25,"sine",0.1)); }catch(e){} }
+
+/* ============ Profile (name + avatar) ============ */
+const AVATAR_COUNT = 22;
+const AVATAR_PATHS = Array.from({length:AVATAR_COUNT}, (_,i)=> `avatars/avatar-${String(i+1).padStart(2,"0")}.png`);
+const PROFILE_KEY = "gridprix_profile_v1";
+function loadProfile(){ try{ return JSON.parse(localStorage.getItem(PROFILE_KEY)); } catch(e){ return null; } }
+function saveProfile(p){ localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); }
+
+function renderProfileBadge(justCreated){
+  let badge = document.getElementById("profileBadge");
+  if(!badge){
+    badge = document.createElement("div");
+    badge.id = "profileBadge";
+    document.body.appendChild(badge);
+  }
+  const p = loadProfile();
+  if(!p){ badge.style.display = "none"; return; }
+  badge.style.display = "flex";
+  const greeting = justCreated ? "Hi" : "Welcome back";
+  badge.innerHTML = `<img src="${p.avatar}" alt=""><div class="profileText">${greeting}, <b>${escapeHtml(p.name)}</b>!</div>`;
+  badge.onclick = ()=> openProfileEditor();
+}
+
+function openProfileEditor(){
+  const existing = loadProfile();
+  const bg = document.createElement("div");
+  bg.className = "modal-bg";
+  bg.innerHTML = `<div class="modal">
+    <h2>🏁 ${existing ? "Edit" : "Set Up"} Your Profile</h2>
+    <input type="text" id="profileNameInput" maxlength="20" placeholder="Your name"
+      value="${existing ? escapeHtml(existing.name) : ""}"
+      style="width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--gridline); background:var(--dark); color:var(--text); font-size:.9rem; margin:10px 0;">
+    <div class="lbLabel">Pick an avatar</div>
+    <div class="avatarGrid" id="avatarGrid"></div>
+    <div class="modalbtns">
+      <button class="btn primary" id="profileSaveBtn">Save</button>
+      ${existing ? `<button class="btn" id="profileCancelBtn">Cancel</button>` : ""}
+    </div>
+  </div>`;
+  document.body.appendChild(bg);
+
+  let selectedAvatar = existing ? existing.avatar : AVATAR_PATHS[Math.floor(Math.random()*AVATAR_PATHS.length)];
+  const grid = bg.querySelector("#avatarGrid");
+  AVATAR_PATHS.forEach(path=>{
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "avatarChoice" + (path===selectedAvatar ? " selected" : "");
+    btn.innerHTML = `<img src="${path}" alt="">`;
+    btn.onclick = ()=>{
+      selectedAvatar = path;
+      grid.querySelectorAll(".avatarChoice").forEach(b=> b.classList.remove("selected"));
+      btn.classList.add("selected");
+    };
+    grid.appendChild(btn);
+  });
+
+  bg.querySelector("#profileSaveBtn").onclick = ()=>{
+    const name = bg.querySelector("#profileNameInput").value.trim();
+    if(!name) return;
+    const wasNew = !existing;
+    saveProfile({ name, avatar: selectedAvatar });
+    bg.remove();
+    renderProfileBadge(wasNew);
+  };
+  const cancelBtn = bg.querySelector("#profileCancelBtn");
+  if(cancelBtn) cancelBtn.onclick = ()=> bg.remove();
+}
 
 function buildMuteToggle(){
   const btn = document.createElement("button");
@@ -2073,6 +2150,8 @@ function buildRaceLane(){
 buildRaceLane();
 buildMuteToggle();
 renderMenu();
+renderProfileBadge(false);
+if(!loadProfile()) openProfileEditor();
 
 })();
 </script>
