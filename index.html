@@ -199,6 +199,30 @@
   .achCard .achDesc{font-size:.78rem; color:var(--muted); margin-top:2px;}
   .achGoalProgress{font-size:.72rem; color:var(--text); margin-top:6px; font-family:var(--font-mono); opacity:.85;}
   .achProgress{font-size:.8rem; color:var(--muted); text-align:center; line-height:1.6;}
+
+  /* ---- Leaderboard starting grid ---- */
+  #leaderboardGrid{display:flex; flex-direction:column; gap:10px; max-width:640px; width:100%; margin:0 auto;}
+  .gridRow{display:flex; gap:14px;}
+  .gridSlot{flex:1; min-width:0; background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--gridline);
+    border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:10px;}
+  .gridSlot.slotOffset{margin-top:20px;}
+  .gridSlot.you{border-color:var(--red); box-shadow:0 0 0 1px var(--red);}
+  .gridSlot .pos{font-family:var(--font-mono); font-weight:800; font-size:1.05rem; color:var(--red); width:26px; flex-shrink:0; text-align:center;}
+  .gridSlot .slotCar{width:38px; height:18px; flex-shrink:0;}
+  .gridSlot .slotCar svg{width:100%; height:100%; transform:scaleX(-1);}
+  .gridSlot .slotInfo{flex:1; min-width:0;}
+  .gridSlot .slotName{font-weight:700; font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .gridSlot .slotTime{font-family:var(--font-mono); font-size:.75rem; color:var(--muted);}
+  .gridSlot.empty{opacity:.4; justify-content:center; font-size:.8rem; color:var(--muted);}
+  .lbForm{max-width:640px; width:100%; margin:22px auto 0; background:var(--panel2); border:1px solid var(--gridline);
+    border-radius:12px; padding:16px;}
+  .lbForm h3{margin:0 0 10px; font-family:var(--font-display); font-size:1.05rem;}
+  .lbForm input[type=text]{width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--gridline);
+    background:var(--dark); color:var(--text); font-size:.9rem; margin-bottom:10px;}
+  .colorSwatches{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
+  .swatch{width:34px; height:34px; border-radius:50%; border:3px solid transparent; cursor:pointer; padding:0;}
+  .swatch.selected{border-color:var(--text);}
+  .lbNote{font-size:.75rem; color:var(--muted); margin-top:8px; line-height:1.5;}
 </style>
 </head>
 <body>
@@ -214,6 +238,41 @@
 
 <div class="raceLane" id="raceLane" aria-hidden="true"></div>
 
+<script type="module">
+  // Shared global leaderboard backend (Firestore). Config is filled in once
+  // the project owner creates a free Firebase project — see README/chat for
+  // setup steps. Until then `configured` is false and the UI shows a
+  // "not connected yet" state instead of erroring.
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDocs, query, orderBy, limit }
+    from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "PASTE_ME",
+    authDomain: "PASTE_ME",
+    projectId: "PASTE_ME",
+    storageBucket: "PASTE_ME",
+    messagingSenderId: "PASTE_ME",
+    appId: "PASTE_ME"
+  };
+  const configured = firebaseConfig.apiKey !== "PASTE_ME";
+  let db = null;
+  if(configured){
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+  }
+  window.gridPrixLeaderboard = {
+    configured,
+    async submit(clientId, name, time, carColor){
+      await setDoc(doc(db, "leaderboard", clientId), { name, time, carColor, updatedAt: Date.now() });
+    },
+    async fetchTop20(){
+      const q = query(collection(db, "leaderboard"), orderBy("time", "asc"), limit(20));
+      const snap = await getDocs(q);
+      return snap.docs.map(d=> ({ id: d.id, ...d.data() }));
+    }
+  };
+</script>
 <script>
 (function(){
 "use strict";
@@ -491,13 +550,141 @@ function renderMenu(){
 
   const unlockedAch = loadAchievements();
   const achCount = Object.keys(unlockedAch).length;
+  const btnRow = document.createElement("div");
+  btnRow.style.display = "flex"; btnRow.style.gap = "10px"; btnRow.style.flexWrap = "wrap"; btnRow.style.marginTop = "16px";
   const achBtn = document.createElement("button");
   achBtn.className = "btn";
-  achBtn.style.marginTop = "16px";
   achBtn.textContent = `🏆 Achievements (${achCount}/${ACHIEVEMENTS.length})`;
   achBtn.onclick = renderAchievements;
-  app.appendChild(achBtn);
+  const lbBtn = document.createElement("button");
+  lbBtn.className = "btn";
+  lbBtn.textContent = "🏁 Leaderboard";
+  lbBtn.onclick = renderLeaderboard;
+  btnRow.appendChild(achBtn); btnRow.appendChild(lbBtn);
+  app.appendChild(btnRow);
 }
+
+/* ============ Leaderboard (shared starting-grid, top 20) ============ */
+const LB_KEY = "gridprix_leaderboard_id_v1";
+function loadLbIdentity(){
+  try{
+    const raw = localStorage.getItem(LB_KEY);
+    if(raw) return JSON.parse(raw);
+  } catch(e){}
+  const fresh = { clientId: "gp_" + Math.random().toString(36).slice(2) + Date.now().toString(36), name: "", carColor: RACE_ACCENT_COLORS[0] };
+  localStorage.setItem(LB_KEY, JSON.stringify(fresh));
+  return fresh;
+}
+function saveLbIdentity(idn){ localStorage.setItem(LB_KEY, JSON.stringify(idn)); }
+
+function renderLeaderboard(){
+  tagline.textContent = "Top 20 — starting grid ranked by fastest qualifying lap";
+  app.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "gamewrap";
+
+  const topbar = document.createElement("div");
+  topbar.className = "topbar";
+  topbar.appendChild(backBtn());
+  wrap.appendChild(topbar);
+
+  const title = document.createElement("h2");
+  title.style.textAlign = "center"; title.style.fontFamily = "var(--font-display)";
+  title.textContent = "🏁 Starting Grid";
+  wrap.appendChild(title);
+
+  const gridEl = document.createElement("div");
+  gridEl.id = "leaderboardGrid";
+  wrap.appendChild(gridEl);
+
+  const idn = loadLbIdentity();
+  const backend = window.gridPrixLeaderboard;
+
+  function slotHTML(pos, entry, offset){
+    if(!entry) return `<div class="gridSlot empty ${offset?"slotOffset":""}">P${pos}</div>`;
+    const isYou = entry.id === idn.clientId;
+    return `<div class="gridSlot ${offset?"slotOffset":""} ${isYou?"you":""}">
+      <div class="pos">P${pos}</div>
+      <div class="slotCar" style="color:${entry.carColor||"#999"}">${carSVG()}</div>
+      <div class="slotInfo">
+        <div class="slotName">${escapeHtml(entry.name||"—")}${isYou?" (you)":""}</div>
+        <div class="slotTime">${fmtTime(entry.time)}</div>
+      </div>
+    </div>`;
+  }
+
+  function renderRows(entries){
+    gridEl.innerHTML = "";
+    for(let i=0;i<10;i++){
+      const left = entries[i*2], right = entries[i*2+1];
+      const row = document.createElement("div");
+      row.className = "gridRow";
+      row.innerHTML = slotHTML(i*2+1, left, false) + slotHTML(i*2+2, right, true);
+      gridEl.appendChild(row);
+    }
+  }
+
+  const form = document.createElement("div");
+  form.className = "lbForm";
+  const myBest = fastestTime(loadProgress());
+  const swatches = RACE_ACCENT_COLORS.map(c=> `<button type="button" class="swatch${c===idn.carColor?" selected":""}" data-color="${c}" style="background:${c}"></button>`).join("");
+  form.innerHTML = `<h3>Submit / Update Your Time</h3>
+    <input type="text" id="lbName" maxlength="20" placeholder="Driver name" value="${escapeHtml(idn.name)}">
+    <div class="colorSwatches">${swatches}</div>
+    <button class="btn primary" id="lbSubmitBtn">🏁 Submit Best Time (${isFinite(myBest) ? fmtTime(myBest) : "no time yet"})</button>
+    <div class="lbNote" id="lbNote"></div>`;
+  wrap.appendChild(form);
+  app.appendChild(wrap);
+
+  let selectedColor = idn.carColor;
+  form.querySelectorAll(".swatch").forEach(sw=>{
+    sw.onclick = ()=>{
+      selectedColor = sw.dataset.color;
+      form.querySelectorAll(".swatch").forEach(s=> s.classList.toggle("selected", s===sw));
+    };
+  });
+
+  const noteEl = form.querySelector("#lbNote");
+  const submitBtn = form.querySelector("#lbSubmitBtn");
+
+  if(!backend || !backend.configured){
+    noteEl.textContent = "Leaderboard backend isn't connected yet — check back soon.";
+    submitBtn.disabled = true;
+    renderRows([]);
+    return;
+  }
+
+  submitBtn.onclick = async ()=>{
+    const name = form.querySelector("#lbName").value.trim();
+    if(!name){ noteEl.textContent = "Enter a name first."; return; }
+    if(!isFinite(myBest)){ noteEl.textContent = "Complete a puzzle first to set a qualifying time."; return; }
+    idn.name = name; idn.carColor = selectedColor;
+    saveLbIdentity(idn);
+    submitBtn.disabled = true;
+    noteEl.textContent = "Submitting...";
+    try{
+      await backend.submit(idn.clientId, name, myBest, selectedColor);
+      noteEl.textContent = "Submitted! Refreshing grid...";
+      await load();
+      noteEl.textContent = "Your time is live on the grid.";
+    } catch(e){
+      noteEl.textContent = "Couldn't submit — check your connection and try again.";
+    }
+    submitBtn.disabled = false;
+  };
+
+  async function load(){
+    gridEl.innerHTML = `<div class="achProgress">Loading grid...</div>`;
+    try{
+      const entries = await backend.fetchTop20();
+      renderRows(entries);
+    } catch(e){
+      gridEl.innerHTML = `<div class="achProgress">Couldn't load the leaderboard. Check your connection.</div>`;
+    }
+  }
+  load();
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, ch=> ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch])); }
 
 function renderAchievements(){
   tagline.textContent = "Every milestone you've unlocked on track";
