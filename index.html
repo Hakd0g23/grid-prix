@@ -230,11 +230,9 @@
   .swatch{width:34px; height:34px; border-radius:50%; border:3px solid transparent; cursor:pointer; padding:0;}
   .swatch.selected{border-color:var(--text);}
   .lbLabel{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin:2px 0 6px;}
-  .helmetSwatch{width:36px; height:36px; border-radius:8px; border:2px solid transparent; cursor:pointer; padding:2px; background:var(--dark);}
-  .helmetSwatch svg{width:100%; height:100%;}
-  .helmetSwatch.selected{border-color:var(--text);}
-  .gridBox .slotHelmet{width:20px; height:20px; margin-bottom:2px;}
-  .gridBox .slotHelmet svg{width:100%; height:100%;}
+  .designSwatch{width:40px; height:52px; border-radius:8px; border:2px solid transparent; cursor:pointer; padding:2px; background:var(--dark);}
+  .designSwatch svg{width:100%; height:100%; transform:rotate(0deg);}
+  .designSwatch.selected{border-color:var(--text);}
   .lbNote{font-size:.75rem; color:var(--muted); margin-top:8px; line-height:1.5;}
 </style>
 </head>
@@ -620,43 +618,35 @@ async function flushLbQueue(){
 window.addEventListener("online", flushLbQueue);
 window.addEventListener("load", flushLbQueue);
 
-// Decoration drawn on the forehead area (above the visor) of the F1 side-profile shell.
-// Decoration drawn on the dome/forehead area, above the visor.
-const HELMET_DECOS = [
+// Car body decoration options (stripe, star, racing stripes, dots, chevron).
+// Kept under the "helmet" field name in identity/storage/Firestore rules to
+// avoid a second rules republish — it's purely a car livery pattern now.
+const CAR_DECOS = [
   "",
-  `<rect x="4" y="5" width="24" height="4" fill="#fff"/>`,
-  `<path d="M16 2.3l1.6 3.2 3.6.4-2.6 2.3.8 3.5-3.4-1.7-3.4 1.7.8-3.5-2.6-2.3 3.6-.4z" fill="#ffd54a"/>`,
-  `<rect x="1" y="0" width="5" height="16" fill="#fff" transform="rotate(35 6 6)"/>`,
-  `<circle cx="10" cy="6" r="1.6" fill="#fff"/><circle cx="16" cy="4" r="1.6" fill="#fff"/><circle cx="22" cy="6" r="1.6" fill="#fff"/>`,
-  `<path d="M6,7 L16,2 L26,7 L16,4.5 Z" fill="#fff"/>`
+  `<rect x="27" y="8" width="6" height="84" fill="#fff"/>`,
+  `<path d="M30 32l2.6 5.3 5.8.5-4.4 3.9 1.4 5.7-5.4-3.2-5.4 3.2 1.4-5.7-4.4-3.9 5.8-.5z" fill="#ffd54a"/>`,
+  `<rect x="21" y="10" width="7" height="80" fill="#fff"/><rect x="32" y="10" width="7" height="80" fill="#fff" opacity=".55"/>`,
+  `<circle cx="24" cy="34" r="3" fill="#fff"/><circle cx="36" cy="34" r="3" fill="#fff"/><circle cx="30" cy="48" r="3" fill="#fff"/><circle cx="24" cy="62" r="3" fill="#fff"/><circle cx="36" cy="62" r="3" fill="#fff"/>`,
+  `<path d="M18,28 L30,16 L42,28 L30,21 Z" fill="#fff"/><path d="M18,50 L30,38 L42,50 L30,43 Z" fill="#fff" opacity=".6"/>`
 ];
-let __helmetClipSeq = 0;
-function helmetSVG(design, color){
-  // Front-facing F1 helmet icon: round dome, wide shield visor tapering to the chin.
-  const deco = HELMET_DECOS[design] || "";
-  const clipId = "helmetClip" + (__helmetClipSeq++);
-  const domePath = "M16,2 C24,2 29,8 29,16 C29,20.5 26.5,24.5 22,27.5 L10,27.5 C5.5,24.5 3,20.5 3,16 C3,8 8,2 16,2 Z";
-  const visorPath = "M6.5,13.5 C6.5,11.3 10.5,10 16,10 C21.5,10 25.5,11.3 25.5,13.5 L24.3,20 C21.5,23.2 18,24.5 16,24.5 C14,24.5 10.5,23.2 7.7,20 Z";
-  return `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="overflow:hidden">
-    <clipPath id="${clipId}"><path d="${domePath}"/></clipPath>
-    <path d="${domePath}" fill="${color}"/>
-    <g clip-path="url(#${clipId})">${deco}</g>
-    <path d="${visorPath}" fill="#0c0c0e"/>
-    <path d="${domePath}" fill="none" stroke="rgba(0,0,0,.3)" stroke-width="1"/>
-  </svg>`;
-}
-function topDownCarSVG(){
+let __carClipSeq = 0;
+function topDownCarSVG(design, color){
   // Viewed from above, nose pointing up the track toward the start line.
+  design = design || 0;
+  const deco = CAR_DECOS[design] || "";
+  const clipId = "carClip" + (__carClipSeq++);
   return `<svg viewBox="0 0 60 100" xmlns="http://www.w3.org/2000/svg">
-    <rect x="24" y="6" width="12" height="18" rx="4" fill="currentColor"/>
-    <rect x="18" y="22" width="24" height="50" rx="6" fill="currentColor"/>
-    <rect x="22" y="74" width="16" height="16" rx="3" fill="currentColor"/>
+    <clipPath id="${clipId}"><rect x="24" y="6" width="12" height="18" rx="4"/><rect x="18" y="22" width="24" height="50" rx="6"/><rect x="22" y="74" width="16" height="16" rx="3"/></clipPath>
+    <rect x="24" y="6" width="12" height="18" rx="4" fill="${color}"/>
+    <rect x="18" y="22" width="24" height="50" rx="6" fill="${color}"/>
+    <rect x="22" y="74" width="16" height="16" rx="3" fill="${color}"/>
+    <g clip-path="url(#${clipId})">${deco}</g>
     <rect x="6" y="30" width="8" height="14" rx="2" fill="#0c0c0e"/>
     <rect x="46" y="30" width="8" height="14" rx="2" fill="#0c0c0e"/>
     <rect x="6" y="64" width="8" height="14" rx="2" fill="#0c0c0e"/>
     <rect x="46" y="64" width="8" height="14" rx="2" fill="#0c0c0e"/>
     <ellipse cx="30" cy="40" rx="7" ry="9" fill="#0c0c0e" opacity=".6"/>
-    <rect x="14" y="90" width="32" height="5" rx="1" fill="currentColor" opacity=".85"/>
+    <rect x="14" y="90" width="32" height="5" rx="1" fill="${color}" opacity=".85"/>
   </svg>`;
 }
 let lbActiveGame = "sudoku";
@@ -702,8 +692,7 @@ function renderLeaderboard(){
     const isYou = entry.id === idn.clientId;
     return `<div class="gridBox ${offset?"offset":""} ${isYou?"you":""}">
       <div class="pos">P${pos}</div>
-      <div class="slotHelmet">${helmetSVG(entry.helmet||0, entry.carColor||"#999")}</div>
-      <div class="slotCarTD" style="color:${entry.carColor||"#999"}">${topDownCarSVG()}</div>
+      <div class="slotCarTD">${topDownCarSVG(entry.helmet||0, entry.carColor||"#999")}</div>
       <div class="slotName">${escapeHtml(entry.name||"—")}${isYou?" (you)":""}</div>
       <div class="slotTime">${entry.completed||0}/${MAX_LEVEL}</div>
     </div>`;
@@ -724,38 +713,38 @@ function renderLeaderboard(){
   form.className = "lbForm";
   const myCompleted = Object.keys(loadProgress()[gameId].times).length;
   const swatches = RACE_ACCENT_COLORS.map(c=> `<button type="button" class="swatch${c===idn.carColor?" selected":""}" data-color="${c}" style="background:${c}"></button>`).join("");
-  const helmetBtns = HELMET_DECOS.map((_,i)=> `<button type="button" class="helmetSwatch${i===idn.helmet?" selected":""}" data-helmet="${i}">${helmetSVG(i, idn.carColor)}</button>`).join("");
+  const designBtns = CAR_DECOS.map((_,i)=> `<button type="button" class="designSwatch${i===idn.helmet?" selected":""}" data-design="${i}">${topDownCarSVG(i, idn.carColor)}</button>`).join("");
   form.innerHTML = `<h3>Submit / Update Your ${GAME_META[gameId].short} Progress</h3>
     <input type="text" id="lbName" maxlength="20" placeholder="Driver name" value="${escapeHtml(idn.name)}">
     <div class="lbLabel">Car color</div>
     <div class="colorSwatches">${swatches}</div>
-    <div class="lbLabel">Helmet</div>
-    <div class="colorSwatches" id="helmetRow">${helmetBtns}</div>
+    <div class="lbLabel">Car design</div>
+    <div class="colorSwatches" id="designRow">${designBtns}</div>
     <button class="btn primary" id="lbSubmitBtn">🏁 Submit Progress (${myCompleted}/${MAX_LEVEL} completed)</button>
     <div class="lbNote" id="lbNote"></div>`;
   wrap.appendChild(form);
   app.appendChild(wrap);
 
   let selectedColor = idn.carColor;
-  let selectedHelmet = idn.helmet;
-  function refreshHelmetPreviews(){
-    form.querySelectorAll(".helmetSwatch").forEach(btn=>{
-      const i = Number(btn.dataset.helmet);
-      btn.innerHTML = helmetSVG(i, selectedColor);
-      btn.classList.toggle("selected", i===selectedHelmet);
+  let selectedDesign = idn.helmet;
+  function refreshDesignPreviews(){
+    form.querySelectorAll(".designSwatch").forEach(btn=>{
+      const i = Number(btn.dataset.design);
+      btn.innerHTML = topDownCarSVG(i, selectedColor);
+      btn.classList.toggle("selected", i===selectedDesign);
     });
   }
   form.querySelectorAll(".swatch").forEach(sw=>{
     sw.onclick = ()=>{
       selectedColor = sw.dataset.color;
       form.querySelectorAll(".swatch").forEach(s=> s.classList.toggle("selected", s===sw));
-      refreshHelmetPreviews();
+      refreshDesignPreviews();
     };
   });
-  form.querySelectorAll(".helmetSwatch").forEach(btn=>{
+  form.querySelectorAll(".designSwatch").forEach(btn=>{
     btn.onclick = ()=>{
-      selectedHelmet = Number(btn.dataset.helmet);
-      refreshHelmetPreviews();
+      selectedDesign = Number(btn.dataset.design);
+      refreshDesignPreviews();
     };
   });
 
@@ -773,19 +762,19 @@ function renderLeaderboard(){
     const name = form.querySelector("#lbName").value.trim();
     if(!name){ noteEl.textContent = "Enter a name first."; return; }
     if(myCompleted<=0){ noteEl.textContent = `Complete a ${GAME_META[gameId].short} level first to join the grid.`; return; }
-    idn.name = name; idn.carColor = selectedColor; idn.helmet = selectedHelmet;
+    idn.name = name; idn.carColor = selectedColor; idn.helmet = selectedDesign;
     saveLbIdentity(idn);
     submitBtn.disabled = true;
     noteEl.textContent = "Submitting...";
     try{
-      await backend.submit(gameId, idn.clientId, name, myCompleted, selectedColor, selectedHelmet);
+      await backend.submit(gameId, idn.clientId, name, myCompleted, selectedColor, selectedDesign);
       const q = loadLbQueue(); delete q[gameId]; saveLbQueue(q);
       noteEl.textContent = "Submitted! Refreshing grid...";
       await load();
       noteEl.textContent = "Your progress is live on the grid.";
     } catch(e){
       const q = loadLbQueue();
-      q[gameId] = { name, completed: myCompleted, carColor: selectedColor, helmet: selectedHelmet };
+      q[gameId] = { name, completed: myCompleted, carColor: selectedColor, helmet: selectedDesign };
       saveLbQueue(q);
       noteEl.textContent = "You're offline — saved and will submit automatically once you're back online.";
     }
