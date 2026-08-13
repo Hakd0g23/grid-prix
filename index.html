@@ -192,6 +192,17 @@
   .modal h2{margin:0 0 8px; color:var(--red);}
   .modal p{color:var(--muted); margin-bottom:16px;}
   .modal .modalbtns{display:flex; flex-direction:column; gap:8px;}
+  .modal.wide{max-width:480px; text-align:left; max-height:80vh; overflow-y:auto;}
+  .modal.wide h2{text-align:center;}
+  .offlineSteps{list-style:none; margin:0 0 16px; padding:0; display:flex; flex-direction:column; gap:14px;}
+  .offlineSteps li{display:flex; gap:12px; align-items:flex-start;}
+  .offlineSteps .stepIcon{flex:0 0 auto; width:44px; height:44px; border-radius:10px; background:var(--panel2); border:1px solid var(--gridline); display:flex; align-items:center; justify-content:center; color:var(--red);}
+  .offlineSteps .stepIcon svg{width:24px; height:24px;}
+  .offlineSteps .stepText b{display:block; color:var(--text); margin-bottom:2px;}
+  .offlineSteps .stepText span{color:var(--muted); font-size:.85rem; line-height:1.5;}
+  .linkBtn{background:none; border:none; color:inherit; text-decoration:underline; font:inherit; cursor:pointer; padding:6px 0; margin-top:4px;}
+  .linkBtn:hover{color:var(--red);}
+  .offlineSteps code{background:var(--panel2); border:1px solid var(--gridline); border-radius:4px; padding:1px 5px; color:var(--text); font-family:var(--font-mono); font-size:.8em;}
 
   /* ---- Achievement toast ---- */
   .achToast{position:fixed; left:50%; bottom:56px; transform:translate(-50%,20px); z-index:60;
@@ -270,7 +281,7 @@
 
 <main id="app"></main>
 
-<footer>Unofficial fan-made puzzle game. Not affiliated with F1, FIA or any team.<br>Icons by <a href="https://game-icons.net" style="color:inherit;">game-icons.net</a> (CC BY 3.0).</footer>
+<footer>Unofficial fan-made puzzle game. Not affiliated with F1, FIA or any team.<br>Icons by <a href="https://game-icons.net" style="color:inherit;">game-icons.net</a> (CC BY 3.0).<br><button type="button" id="offlineHelpBtn" class="linkBtn">📴 How to Play Offline</button></footer>
 
 <div class="raceLane" id="raceLane" aria-hidden="true"></div>
 
@@ -2240,6 +2251,32 @@ function buildRaceLane(){
   document.head.appendChild(styleEl);
 }
 
+/* ============ Offline help modal ============ */
+function openOfflineHelpModal(){
+  const bg = document.createElement("div");
+  bg.className = "modal-bg";
+  const installIcon = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3v11m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const homeIcon = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" stroke-width="2"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+  const shareIcon = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 15V3m0 0l-3.5 3.5M12 3l3.5 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const fileIcon = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v5h5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
+  bg.innerHTML = `<div class="modal wide">
+    <h2>📴 How to Play Offline</h2>
+    <p style="text-align:center;">Puzzles, progress and achievements all run on your device — no connection needed once you've set it up. Only the global leaderboard needs to be online.</p>
+    <ul class="offlineSteps">
+      <li><div class="stepIcon">${installIcon}</div><div class="stepText"><b>Desktop — Chrome / Edge</b><span>Visit the site once while online, then click the install icon in the address bar (or menu → "Install Grid Prix"). It'll launch from your apps like any other program, no browser or internet needed.</span></div></li>
+      <li><div class="stepIcon">${homeIcon}</div><div class="stepText"><b>Android — Chrome</b><span>Visit the site once, then open the menu (⋮) and tap "Add to Home screen" / "Install app". Launch it from your home screen any time.</span></div></li>
+      <li><div class="stepIcon">${shareIcon}</div><div class="stepText"><b>iPhone / iPad — Safari</b><span>Visit the site once, tap the Share icon, then "Add to Home Screen". It'll open full-screen like a normal app.</span></div></li>
+      <li><div class="stepIcon">${fileIcon}</div><div class="stepText"><b>No install at all</b><span>Download <code>index.html</code> (and the <code>avatars</code> folder) from the GitHub repo and just double-click it — it opens straight in your browser, fully playable, forever.</span></div></li>
+    </ul>
+    <div class="modalbtns">
+      <button class="btn primary" id="offlineHelpCloseBtn">Got it</button>
+    </div>
+  </div>`;
+  document.body.appendChild(bg);
+  bg.querySelector("#offlineHelpCloseBtn").onclick = ()=> bg.remove();
+  bg.onclick = (e)=>{ if(e.target === bg) bg.remove(); };
+}
+
 /* ============ Boot ============ */
 buildRaceLane();
 buildMuteToggle();
@@ -2248,6 +2285,7 @@ armBgmAutostart();
 renderMenu();
 renderProfileBadge(false);
 if(!loadProfile()) openProfileEditor();
+document.getElementById("offlineHelpBtn").onclick = openOfflineHelpModal;
 
 })();
 </script>
