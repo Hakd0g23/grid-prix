@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Grid Prix — F1 Mind Games</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#e10600">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
@@ -311,6 +313,12 @@
       return snap.docs.map(d=> ({ id: d.id, ...d.data() }));
     }
   };
+
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    });
+  }
 </script>
 <script>
 (function(){
