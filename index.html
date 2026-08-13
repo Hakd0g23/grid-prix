@@ -147,6 +147,14 @@
   #muteToggle{position:fixed; top:10px; right:10px; z-index:40; width:38px; height:38px; border-radius:50%;
     background:var(--panel2); border:1px solid var(--gridline); color:var(--text); font-size:1.1rem;
     cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  #bgmToggle{position:fixed; top:10px; right:56px; z-index:40; width:38px; height:38px; border-radius:50%;
+    background:var(--panel2); border:1px solid var(--gridline); color:var(--text); font-size:1.1rem;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .statBlock{margin:12px 0;}
+  .statRow{display:flex; justify-content:space-between; padding:6px 0; font-size:.85rem; border-bottom:1px solid var(--gridline);}
+  .statRow span:first-child{color:var(--muted);}
+  .statRow span:last-child{font-family:var(--font-mono); font-weight:700; color:var(--text);}
+  .statDivider{height:10px;}
   #profileBadge{position:fixed; top:10px; left:10px; z-index:40; display:flex; align-items:center; gap:8px;
     background:var(--panel2); border:1px solid var(--gridline); border-radius:22px; padding:4px 12px 4px 4px;
     cursor:pointer; max-width:calc(100vw - 60px);}
@@ -561,6 +569,32 @@ function sfxWin(){ if(!sfxEnabled) return; try{ [523,659,784,1047].forEach((f,i)
 function sfxLose(){ if(!sfxEnabled) return; try{ [400,320,240].forEach((f,i)=> tone(f,i*0.12,0.22,"sawtooth",0.1)); }catch(e){} }
 function sfxAchievement(){ if(!sfxEnabled) return; try{ [784,988,1175,1568].forEach((f,i)=> tone(f,i*0.06,0.25,"sine",0.1)); }catch(e){} }
 
+/* ============ Background music (original synthesized loop) ============
+   Not the real F1 broadcast theme (copyrighted, licensed exclusively to
+   F1) — a small original driving riff generated the same way as the SFX
+   above, so it stays offline/self-contained with zero licensing risk. */
+let bgmEnabled = localStorage.getItem("gridprix_bgm") !== "off";
+let bgmTimer = null;
+const BGM_BEAT = 60/128;
+const BGM_BASS = [110,110,146.83,146.83,174.61,174.61,196,164.81];
+const BGM_ARP  = [220,277.18,329.63,440];
+function bgmLoop(){
+  if(!bgmEnabled){ bgmTimer = null; return; }
+  try{
+    BGM_BASS.forEach((freq,i)=> tone(freq, i*BGM_BEAT, BGM_BEAT*0.9, "square", 0.045));
+    for(let i=0;i<BGM_BASS.length*2;i++){
+      tone(BGM_ARP[i % BGM_ARP.length], i*(BGM_BEAT/2), BGM_BEAT*0.35, "triangle", 0.028);
+    }
+  } catch(e){}
+  bgmTimer = setTimeout(bgmLoop, BGM_BASS.length*BGM_BEAT*1000);
+}
+function startBgm(){ if(bgmTimer || !bgmEnabled) return; bgmLoop(); }
+function stopBgm(){ if(bgmTimer){ clearTimeout(bgmTimer); bgmTimer = null; } }
+function armBgmAutostart(){
+  const starter = ()=>{ startBgm(); document.removeEventListener("pointerdown", starter); };
+  document.addEventListener("pointerdown", starter, {once:true});
+}
+
 /* ============ Profile (name + avatar) ============ */
 const AVATAR_COUNT = 22;
 const AVATAR_PATHS = Array.from({length:AVATAR_COUNT}, (_,i)=> `avatars/avatar-${String(i+1).padStart(2,"0")}.png`);
@@ -580,7 +614,44 @@ function renderProfileBadge(justCreated){
   badge.style.display = "flex";
   const greeting = justCreated ? "Hi" : "Welcome back";
   badge.innerHTML = `<img src="${p.avatar}" alt=""><div class="profileText">${greeting}, <b>${escapeHtml(p.name)}</b>!</div>`;
-  badge.onclick = ()=> openProfileEditor();
+  badge.onclick = ()=> openProfileStats();
+}
+
+function openProfileStats(){
+  const p = loadProfile();
+  if(!p){ openProfileEditor(); return; }
+  const progress = loadProgress();
+  const ach = loadAchievements();
+  const total = totalCompleted(progress);
+  const best = fastestTime(progress);
+  const rows = Object.keys(GAME_META).map(id=>{
+    const g = GAME_META[id];
+    const done = Object.keys(progress[id].times).length;
+    const gBest = Object.values(progress[id].times).reduce((m,t)=> t<m?t:m, Infinity);
+    return `<div class="statRow"><span>${g.short}</span><span>${done}/${MAX_LEVEL} · best ${isFinite(gBest)?fmtTime(gBest):"—"}</span></div>`;
+  }).join("");
+  const bg = document.createElement("div");
+  bg.className = "modal-bg";
+  bg.innerHTML = `<div class="modal">
+    <img src="${p.avatar}" alt="" style="width:64px;height:64px;border-radius:50%;display:block;margin:0 auto 10px;">
+    <h2 style="text-align:center;">${escapeHtml(p.name)}</h2>
+    <div class="statBlock">
+      <div class="statRow"><span>Total completed</span><span>${total}/${MAX_LEVEL*3}</span></div>
+      <div class="statRow"><span>Fastest time (any game)</span><span>${isFinite(best)?fmtTime(best):"—"}</span></div>
+      <div class="statRow"><span>Current streak</span><span>${progress.streak||0}</span></div>
+      <div class="statRow"><span>Achievements</span><span>${Object.keys(ach).length}/${ACHIEVEMENTS.length}</span></div>
+      <div class="statRow"><span>Sudoku hints</span><span>${progress.sudoku.hints||0}</span></div>
+      <div class="statDivider"></div>
+      ${rows}
+    </div>
+    <div class="modalbtns">
+      <button class="btn primary" id="statsEditBtn">✎ Edit Profile</button>
+      <button class="btn" id="statsCloseBtn">Close</button>
+    </div>
+  </div>`;
+  document.body.appendChild(bg);
+  bg.querySelector("#statsEditBtn").onclick = ()=>{ bg.remove(); openProfileEditor(); };
+  bg.querySelector("#statsCloseBtn").onclick = ()=> bg.remove();
 }
 
 function openProfileEditor(){
@@ -639,6 +710,20 @@ function buildMuteToggle(){
     localStorage.setItem("gridprix_sfx", sfxEnabled ? "on" : "off");
     render();
     if(sfxEnabled) sfxClick();
+  };
+  document.body.appendChild(btn);
+}
+function buildBgmToggle(){
+  const btn = document.createElement("button");
+  btn.id = "bgmToggle";
+  btn.setAttribute("aria-label", "Toggle background music");
+  function render(){ btn.textContent = bgmEnabled ? "🎵" : "🎵̶"; btn.style.opacity = bgmEnabled ? "1" : ".5"; }
+  render();
+  btn.onclick = ()=>{
+    bgmEnabled = !bgmEnabled;
+    localStorage.setItem("gridprix_bgm", bgmEnabled ? "on" : "off");
+    render();
+    if(bgmEnabled) startBgm(); else stopBgm();
   };
   document.body.appendChild(btn);
 }
@@ -2150,6 +2235,8 @@ function buildRaceLane(){
 /* ============ Boot ============ */
 buildRaceLane();
 buildMuteToggle();
+buildBgmToggle();
+armBgmAutostart();
 renderMenu();
 renderProfileBadge(false);
 if(!loadProfile()) openProfileEditor();
