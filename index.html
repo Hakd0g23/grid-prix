@@ -249,11 +249,10 @@
   .gridBoxRow{display:flex; gap:16px; position:relative; z-index:1;}
   .gridBox{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; padding:6px 4px 14px; margin-bottom:14px;}
   .gridBox.offset{margin-top:24px;}
-  .gridBox .gridPositionLine{width:70%; height:3px; background:rgba(255,255,255,.4); border-radius:2px; margin-top:14px; margin-bottom:8px;}
-  .gridBox .slotCarTD + .gridPositionLine{margin-top:-35px;}
+  .gridBox .gridPositionLine{width:70%; height:3px; background:rgba(255,255,255,.4); border-radius:2px; margin-top:-3px; margin-bottom:8px;}
   .gridBox.you .gridPositionLine{background:var(--red); box-shadow:0 0 6px var(--red);}
   .gridBox.empty{opacity:.28;}
-  .gridBox .slotCarTD{width:30px; height:50px; position:relative; z-index:1;}
+  .gridBox .slotCarTD{width:30px; height:50px;}
   .gridBox .slotCarTD svg{width:100%; height:100%;}
   .gridBox .pos{font-family:var(--font-mono); font-weight:800; font-size:.72rem; color:#fff; letter-spacing:.5px;}
   .gridBox .slotName{font-weight:700; font-size:.74rem; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; color:#fff;}
