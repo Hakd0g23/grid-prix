@@ -90,6 +90,17 @@
   .sc.conflict{color:var(--red); }
   .sc.boxR{border-right:2px solid var(--red);}
   .sc.boxB{border-bottom:2px solid var(--red);}
+  @keyframes scBurst{
+    0%{box-shadow:0 0 0 0 rgba(0,210,106,.85); background-color:rgba(0,210,106,.4);}
+    100%{box-shadow:0 0 0 6px rgba(0,210,106,0); background-color:transparent;}
+  }
+  .sc.sc-burst{animation:scBurst .6s ease-out;}
+  @keyframes gridWinPulse{0%{transform:scale(1);}45%{transform:scale(1.015);}100%{transform:scale(1);}}
+  #sudokuGrid.sc-grid-complete{animation:gridWinPulse .6s ease;}
+  @media (prefers-reduced-motion: reduce){
+    .sc.sc-burst{ animation:none !important; }
+    #sudokuGrid.sc-grid-complete{ animation:none !important; }
+  }
   .notesGrid{display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
     width:100%; height:100%; padding:1px;}
   .notesGrid span{display:flex; align-items:center; justify-content:center;
@@ -696,6 +707,7 @@ function renderSudoku(level){
     updateHintBtn();
     saveState();
     draw();
+    celebrateCompletions(r,c);
     checkWin();
   };
   function updateHintBtn(){ hintBtn.textContent = `💡 Hint (${hintsAvailable})`; hintBtn.disabled = hintsAvailable<=0; }
@@ -759,6 +771,36 @@ function renderSudoku(level){
     bg.querySelector("#loseRetryBtn").onclick = ()=>{ bg.remove(); renderSudoku(level); };
     bg.querySelector("#loseLevelsBtn").onclick = ()=>{ bg.remove(); renderLevelSelect("sudoku"); };
     bg.querySelector("#losePaddockBtn").onclick = ()=>{ bg.remove(); renderMenu(); };
+  }
+
+  function isRowComplete(r){ for(let c=0;c<N;c++) if(board[r][c]!==solution[r][c]) return false; return true; }
+  function isColComplete(c){ for(let r=0;r<N;r++) if(board[r][c]!==solution[r][c]) return false; return true; }
+  function isBoxComplete(r,c){
+    const br=Math.floor(r/BOX)*BOX, bc=Math.floor(c/BOX)*BOX;
+    for(let rr=br; rr<br+BOX; rr++) for(let cc=bc; cc<bc+BOX; cc++) if(board[rr][cc]!==solution[rr][cc]) return false;
+    return true;
+  }
+  function burstCell(idx){
+    const el = gridEl.children[idx];
+    if(!el) return;
+    el.classList.remove("sc-burst"); void el.offsetWidth;
+    el.classList.add("sc-burst");
+    setTimeout(()=> el.classList.remove("sc-burst"), 650);
+  }
+  function celebrateCompletions(r,c){
+    const cells = new Set();
+    if(isRowComplete(r)) for(let cc=0;cc<N;cc++) cells.add(r*N+cc);
+    if(isColComplete(c)) for(let rr=0;rr<N;rr++) cells.add(rr*N+c);
+    if(isBoxComplete(r,c)){
+      const br=Math.floor(r/BOX)*BOX, bc=Math.floor(c/BOX)*BOX;
+      for(let rr=br; rr<br+BOX; rr++) for(let cc=bc; cc<bc+BOX; cc++) cells.add(rr*N+cc);
+    }
+    cells.forEach(burstCell);
+  }
+  function celebrateGrid(){
+    gridEl.classList.remove("sc-grid-complete"); void gridEl.offsetWidth;
+    gridEl.classList.add("sc-grid-complete");
+    for(let idx=0; idx<N*N; idx++) setTimeout(()=> burstCell(idx), idx*10);
   }
 
   function conflicts(r,c,val){
@@ -839,6 +881,7 @@ function renderSudoku(level){
       }
       draw();
       saveState();
+      if(n === solution[r][c]) celebrateCompletions(r,c);
       checkWin();
     };
     padEl.appendChild(b);
@@ -863,8 +906,9 @@ function renderSudoku(level){
     timer.stop();
     clearInProgress("sudoku");
     msg.textContent = "Perfect lap! Grid complete.";
+    celebrateGrid();
     const extra = mistakes===0 ? "Flawless sudoku — no mistakes. " : `Finished with ${mistakes} mistake${mistakes===1?"":"s"}. `;
-    setTimeout(()=> winModal("sudoku", level, timer.val(), extra, {mistakes}), 300);
+    setTimeout(()=> winModal("sudoku", level, timer.val(), extra, {mistakes}), 1000);
   }
 
   draw();
