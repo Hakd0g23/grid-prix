@@ -208,8 +208,7 @@
       linear-gradient(45deg,#111 25%, transparent 25%, transparent 75%, #111 75%),
       linear-gradient(45deg,#111 25%, transparent 25%, transparent 75%, #111 75%);
     background-size:16px 16px; background-position:0 0,8px 8px; background-color:#fff;}
-  .trackBody{position:relative; padding:20px 22px 4px;
-    background:repeating-linear-gradient(180deg, transparent 0 38px, rgba(255,255,255,.06) 38px 40px), linear-gradient(180deg,#242424,#1a1a1a);}
+  .trackBody{position:relative; padding:20px 22px 4px; background:linear-gradient(180deg,#242424,#1a1a1a);}
   .trackBody::before{content:""; position:absolute; left:50%; top:0; bottom:0; border-left:3px dashed rgba(255,255,255,.22); transform:translateX(-50%);}
   .gridBoxRow{display:flex; gap:16px; position:relative; z-index:1;}
   .gridBox{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; padding:8px 4px 10px;
@@ -596,24 +595,55 @@ function loadLbIdentity(){
 }
 function saveLbIdentity(idn){ localStorage.setItem(LB_KEY, JSON.stringify(idn)); }
 
+/* Offline submissions are queued per-game and flushed automatically once
+   the browser regains connectivity, so playing offline never loses a
+   leaderboard update — it just lands late. */
+const LB_QUEUE_KEY = "gridprix_leaderboard_queue_v1";
+function loadLbQueue(){ try{ return JSON.parse(localStorage.getItem(LB_QUEUE_KEY)) || {}; } catch(e){ return {}; } }
+function saveLbQueue(q){ localStorage.setItem(LB_QUEUE_KEY, JSON.stringify(q)); }
+async function flushLbQueue(){
+  const backend = window.gridPrixLeaderboard;
+  if(!backend || !backend.configured) return;
+  const q = loadLbQueue();
+  const gameIds = Object.keys(q);
+  if(!gameIds.length) return;
+  const idn = loadLbIdentity();
+  for(const gameId of gameIds){
+    const item = q[gameId];
+    try{
+      await backend.submit(gameId, idn.clientId, item.name, item.completed, item.carColor, item.helmet);
+      delete q[gameId];
+    } catch(e){ /* still offline or backend unreachable — stays queued */ }
+  }
+  saveLbQueue(q);
+}
+window.addEventListener("online", flushLbQueue);
+window.addEventListener("load", flushLbQueue);
+
+// Decoration drawn on the forehead area (above the visor) of the F1 side-profile shell.
 const HELMET_DECOS = [
   "",
-  `<rect x="4" y="14" width="24" height="6" fill="#fff"/>`,
-  `<path d="M16 4l2.5 5.2 5.7.5-4.3 3.8 1.3 5.6L16 16l-5.2 3.1 1.3-5.6-4.3-3.8 5.7-.5z" fill="#ffd54a"/>`,
-  `<rect x="1" y="9" width="6" height="26" fill="#fff" transform="rotate(-40 16 16)"/>`,
-  `<circle cx="10" cy="10" r="2" fill="#fff"/><circle cx="18" cy="8" r="2" fill="#fff"/><circle cx="22" cy="14" r="2" fill="#fff"/>`,
-  `<path d="M4,15 L14,7 L24,15 L14,11 Z" fill="#fff"/>`
+  `<rect x="7" y="4" width="24" height="4.5" fill="#fff"/>`,
+  `<path d="M19 2.5l1.7 3.4 3.8.4-2.8 2.4.8 3.7-3.5-1.8-3.5 1.8.8-3.7-2.8-2.4 3.8-.4z" fill="#ffd54a"/>`,
+  `<rect x="6" y="1" width="5" height="15" fill="#fff" transform="rotate(35 8 8)"/>`,
+  `<circle cx="13" cy="6" r="1.7" fill="#fff"/><circle cx="19" cy="4" r="1.7" fill="#fff"/><circle cx="25" cy="6" r="1.7" fill="#fff"/>`,
+  `<path d="M7,9 L17,3 L27,9 L17,6 Z" fill="#fff"/>`
 ];
 let __helmetClipSeq = 0;
 function helmetSVG(design, color){
+  // Real F1-style side-profile shell: rounded dome, tapered rear, angled visor band.
   const deco = HELMET_DECOS[design] || "";
   const clipId = "helmetClip" + (__helmetClipSeq++);
-  const domePath = "M16 3c7.2 0 12 5.4 12 12.5 0 1.5-.2 2.8-.6 4H4.6c-.4-1.2-.6-2.5-.6-4C4 8.4 8.8 3 16 3z";
-  return `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="overflow:hidden">
-    <clipPath id="${clipId}"><path d="${domePath}"/></clipPath>
-    <path d="${domePath}" fill="${color}"/>
-    <g clip-path="url(#${clipId})">${deco}</g>
-    <rect x="3" y="17" width="26" height="7" rx="3" fill="#0c0c0e"/>
+  const shellPath = "M3,18 C2,9 11,2 20,2 C28,2 34,6 36,12.5 C37,16 35,18.5 31,18.5 L28.5,18.5 C27,23.5 21,28 14,28 C7.5,28 3.5,24 3,18 Z";
+  return `<svg viewBox="0 0 40 30" xmlns="http://www.w3.org/2000/svg" style="overflow:hidden">
+    <clipPath id="${clipId}"><path d="${shellPath}"/></clipPath>
+    <path d="${shellPath}" fill="${color}"/>
+    <g clip-path="url(#${clipId})">
+      ${deco}
+      <path d="M11,13.5 L34,11 L35,18 L12,20.5 Z" fill="#0c0c0e"/>
+      <rect x="9" y="20" width="10" height="4.5" rx="1.5" fill="#0c0c0e" opacity=".85"/>
+    </g>
+    <path d="${shellPath}" fill="none" stroke="rgba(0,0,0,.3)" stroke-width="1"/>
   </svg>`;
 }
 function topDownCarSVG(){
@@ -750,17 +780,24 @@ function renderLeaderboard(){
     noteEl.textContent = "Submitting...";
     try{
       await backend.submit(gameId, idn.clientId, name, myCompleted, selectedColor, selectedHelmet);
+      const q = loadLbQueue(); delete q[gameId]; saveLbQueue(q);
       noteEl.textContent = "Submitted! Refreshing grid...";
       await load();
       noteEl.textContent = "Your progress is live on the grid.";
     } catch(e){
-      noteEl.textContent = "Couldn't submit — check your connection and try again.";
+      const q = loadLbQueue();
+      q[gameId] = { name, completed: myCompleted, carColor: selectedColor, helmet: selectedHelmet };
+      saveLbQueue(q);
+      noteEl.textContent = "You're offline — saved and will submit automatically once you're back online.";
     }
     submitBtn.disabled = false;
   };
 
   async function load(){
     trackBody.innerHTML = `<div class="achProgress">Loading grid...</div>`;
+    await flushLbQueue();
+    const q = loadLbQueue();
+    if(q[gameId]) noteEl.textContent = "A queued submission for this game is waiting to sync — it'll go live automatically once you're online.";
     try{
       const entries = await backend.fetchTop20(gameId);
       renderRows(entries);
